@@ -1,0 +1,47 @@
+<svg width="100%" viewBox="0 0 680 300" role="img" xmlns="http://www.w3.org/2000/svg">
+<title style="fill:rgb(0, 0, 0);stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto">ReelScribe logo</title>
+<desc style="fill:rgb(0, 0, 0);stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto">A soundwave with a play button integrated, in purple and cyan, with the wordmark ReelScribe below</desc>
+
+
+
+<defs>
+  <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" style="stop-color:#7C3AED"/>
+    <stop offset="100%" style="stop-color:#06B6D4"/>
+  </linearGradient>
+  <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" style="stop-color:#7C3AED"/>
+    <stop offset="100%" style="stop-color:#06B6D4"/>
+  </linearGradient>
+</defs>
+
+<!-- Waveform bars — symmetrical, centered at y=110 -->
+<!-- Left side bars (fading out) -->
+<rect x="200" y="103" width="5" height="14" rx="2.5" fill="url(#waveGrad)" opacity="0.3" style="stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.3;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<rect x="210" y="98" width="5" height="24" rx="2.5" fill="url(#waveGrad)" opacity="0.45" style="stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.45;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<rect x="220" y="92" width="5" height="36" rx="2.5" fill="url(#waveGrad)" opacity="0.6" style="stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.6;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<rect x="230" y="86" width="5" height="48" rx="2.5" fill="url(#waveGrad)" opacity="0.75" style="stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.75;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<rect x="240" y="94" width="5" height="32" rx="2.5" fill="url(#waveGrad)" opacity="0.85" style="stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.85;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<rect x="250" y="88" width="5" height="44" rx="2.5" fill="url(#waveGrad)" opacity="0.9" style="stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.9;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<!-- Play button circle -->
+<circle cx="295" cy="110" r="38" fill="url(#waveGrad)" opacity="0.15" style="stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.15;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<circle cx="295" cy="110" r="38" fill="none" stroke="url(#waveGrad)" stroke-width="2" style="fill:none;color:rgb(251, 251, 254);stroke-width:2px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<!-- Play triangle -->
+<polygon points="285,94 285,126 315,110" fill="url(#waveGrad)" style="stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<!-- Right side bars -->
+<rect x="339" y="88" width="5" height="44" rx="2.5" fill="url(#waveGrad)" opacity="0.9" style="stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.9;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<rect x="349" y="94" width="5" height="32" rx="2.5" fill="url(#waveGrad)" opacity="0.85" style="stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.85;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<rect x="359" y="86" width="5" height="48" rx="2.5" fill="url(#waveGrad)" opacity="0.75" style="stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.75;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<rect x="369" y="92" width="5" height="36" rx="2.5" fill="url(#waveGrad)" opacity="0.6" style="stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.6;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<rect x="379" y="98" width="5" height="24" rx="2.5" fill="url(#waveGrad)" opacity="0.45" style="stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.45;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<rect x="389" y="103" width="5" height="14" rx="2.5" fill="url(#waveGrad)" opacity="0.3" style="stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.3;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:18px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<!-- Wordmark -->
+<text x="340" y="192" text-anchor="middle" fill="url(#textGrad)" style="stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Inter&quot;, system-ui, sans-serif;font-size:38px;font-weight:600;text-anchor:middle;dominant-baseline:auto">ReelScribe</text>
+
+<!-- Tagline -->
+<text x="340" y="218" text-anchor="middle" fill="#06B6D4" opacity="0.7" style="fill:rgb(6, 182, 212);stroke:none;color:rgb(251, 251, 254);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.7;font-family:&quot;Inter&quot;, system-ui, sans-serif;font-size:13px;font-weight:400;text-anchor:middle;dominant-baseline:auto">TRANSCRIBE · INSTANTLY · FREE</text>
+
+</svg>

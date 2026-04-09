@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+slowapi
+yt-dlp
+groq
+deepgram-sdk
+python-multipart
+aiohttp
+python-dotenv
+pydantic
+pydantic-settings
+python-magic

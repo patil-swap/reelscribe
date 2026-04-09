@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReelScribe | Free AI Transcription</title>
+    <link rel="icon" href="reelscribe_logo.svg">
+    <meta name="description" content="Transcribe YouTube videos, Reels, and audio files in seconds with Whisper AI. Completely free, no account required.">
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#7c3aed',
+                        secondary: '#06b6d4',
+                        dark: '#0f0f13',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="p-4 sm:p-8 flex flex-col items-center">
+    
+    <div class="min-h-screen flex flex-col items-center px-4 py-8 max-w-4xl mx-auto">
+        
+        <!-- Header -->
+        <header class="w-full flex flex-col items-center mb-12">
+            <div class="flex items-center gap-3 mb-2">
+                <img src="reelscribe_logo.svg" alt="ReelScribe Logo" class="h-12 w-auto drop-shadow-sm">
+                <h1 id="app-title" class="text-4xl font-bold tracking-tight text-gradient">ReelScribe</h1>
+            </div>
+            <p class="text-secondary text-center">Transcribe YouTube videos, Reels & audio files in seconds.</p>
+            
+            <!-- Theme Toggle -->
+            <button id="theme-toggle" class="absolute top-6 right-6 p-2 rounded-full glass glass-hover transition-all">
+                <svg id="sun-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.071 16.071l.707.707M7.757 7.757l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"></path></svg>
+                <svg id="moon-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+            </button>
+        </header>
+
+        <!-- Main Content -->
+        <main class="w-full space-y-6">
+            
+            <!-- URL Input -->
+            <div class="w-full">
+                <div class="relative group">
+                    <input type="text" id="url-input" 
+                        class="w-full px-6 py-4 glass text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder-gray-500" 
+                        placeholder="Paste YouTube, Instagram Reel, or TikTok URL here...">
+                    <button id="transcribe-btn" class="absolute right-2 top-2 bottom-2 px-6 bg-gradient-purple rounded-lg font-semibold hover:opacity-90 transition-all">
+                        Transcribe
+                    </button>
+                </div>
+            </div>
+
+            <!-- File Upload Zone -->
+            <div id="drop-zone" class="w-full py-10 glass glass-hover border-dashed border-2 flex flex-col items-center gap-4 cursor-pointer transition-all">
+                <div class="p-4 rounded-full bg-primary/10">
+                    <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                </div>
+                <div class="text-center">
+                    <p class="font-medium">Drop file here or click to upload</p>
+                    <p class="text-xs text-secondary mt-1">Maximum file size: 50MB</p>
+                </div>
+                <div class="flex flex-wrap justify-center gap-2 px-4">
+                    <span class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">MP3</span>
+                    <span class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">MP4</span>
+                    <span class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">WAV</span>
+                    <span class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">M4A</span>
+                    <span class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">WEBM</span>
+                </div>
+                <input type="file" id="file-input" class="hidden" accept="audio/*,video/*">
+            </div>
+
+            <!-- Options Row -->
+            <div class="flex flex-col sm:flex-row gap-4 items-center justify-between px-2">
+                <div class="flex items-center gap-3">
+                    <label class="text-sm font-medium text-secondary">AI Model:</label>
+                    <div class="relative">
+                        <select id="model-select" class="w-full px-4 py-3 rounded-xl outline-none transition-all appearance-none cursor-pointer pr-12">
+                            <option value="whisper-large-v3">Whisper Large v3</option>
+                            <option value="whisper-large-v3-turbo" selected>Whisper Large v3 Turbo (Recommended)</option>
+                        </select>
+                        <div class="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none">
+                             <span id="rec-badge" class="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-500 text-[9px] font-bold">REC</span>
+                        </div>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-secondary">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <span class="text-sm font-medium text-secondary">Include Timestamps</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="timestamp-toggle" class="sr-only peer" checked>
+                        <div class="toggle-bg w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary"></div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Progress Card (Hidden by default) -->
+            <div id="progress-card" class="hidden w-full glass p-6 space-y-4">
+                <div class="flex gap-4 items-center">
+                    <img id="video-thumb" src="" alt="" class="h-16 w-28 object-cover rounded hidden">
+                    <div class="flex-1 min-w-0">
+                        <h3 id="video-title" class="font-bold truncate">Processing...</h3>
+                        <p id="video-channel" class="text-sm text-secondary truncate"></p>
+                    </div>
+                    <button id="cancel-btn" class="p-2 hover:bg-white/10 rounded-full transition-colors text-secondary" title="Cancel">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs font-medium uppercase tracking-wider">
+                        <span id="status-text" class="text-secondary animate-pulse-soft">Initializing...</span>
+                        <span id="progress-percent">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
+                        <div id="progress-bar" class="progress-bar-fill w-0 h-full"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result Section (Hidden by default) -->
+            <section id="result-section" class="hidden w-full space-y-4">
+                <div class="flex items-center justify-between px-2">
+                    <h2 class="text-xl font-bold">Transcript Result</h2>
+                    <button id="reset-btn" class="text-xs font-semibold text-primary hover:underline uppercase tracking-widest">
+                        Transcribe Another
+                    </button>
+                </div>
+
+                <div id="transcript-container" class="glass p-6 leading-relaxed transcript-area whitespace-pre-wrap" contenteditable="true">
+                    <!-- Transcript will live here -->
+                </div>
+
+                <div class="flex flex-col md:flex-row gap-4 justify-between items-center py-2">
+                    <div class="flex gap-2">
+                        <button id="copy-text" class="px-4 py-2 glass glass-hover text-xs font-medium rounded-lg flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            Copy Text
+                        </button>
+                        <button id="copy-json" class="px-4 py-2 glass glass-hover text-xs font-medium rounded-lg flex items-center gap-2">
+                            JSON
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="download-txt" class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">
+                            TXT
+                        </button>
+                        <button id="download-srt" class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">
+                            SRT
+                        </button>
+                        <button id="download-md" class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">
+                            MD
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="mt-auto pt-16 pb-8 w-full border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-secondary">
+            <div class="flex items-center gap-2">
+                <span>Built on Whisper AI</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span>Completely free</span>
+                <span class="opacity-30">•</span>
+                <span>No signup required</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 flex flex-col gap-3 max-w-sm w-full"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

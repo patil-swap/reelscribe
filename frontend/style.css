@@ -1,0 +1,175 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --primary: #7c3aed;
+  --primary-hover: #6d28d9;
+  --secondary: #06b6d4;
+  --success: #06b6d4;
+  --error: #ef4444;
+
+  /* Dark Mode Variables (Default) */
+  --bg-page: #0F0F13;
+  --bg-card: #1A1A24;
+  --border-card: rgba(255, 255, 255, 0.1);
+  --text-primary: #F1F1F3;
+  --text-secondary: #9090A8;
+  --bg-input: #12121A;
+  --bg-transcript: #12121A;
+  --backdrop-blur: blur(12px);
+}
+
+:root:not(.dark) {
+  /* Light Mode Variables */
+  --bg-page: #F5F5FA;
+  --bg-card: #FFFFFF;
+  --border-card: #E2E2EE;
+  --text-primary: #0F0F13;
+  --text-secondary: #5A5A72;
+  --bg-input: #FFFFFF;
+  --bg-transcript: #F9F9FC;
+  --backdrop-blur: none;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Glassmorphism / Card Classes */
+.glass {
+  background: var(--bg-card);
+  backdrop-filter: var(--backdrop-blur);
+  -webkit-backdrop-filter: var(--backdrop-blur);
+  border: 1px solid var(--border-card);
+  border-radius: 1rem;
+}
+
+.glass-hover:hover {
+  border-color: var(--primary);
+  transition: all 0.2s ease;
+}
+
+/* Select and inputs */
+select, input {
+  background-color: var(--bg-input) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-card);
+}
+
+/* Gradients */
+.bg-gradient-purple {
+  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Transcript Area */
+.transcript-area {
+  background-color: var(--bg-transcript);
+  color: var(--text-primary);
+  min-height: 300px;
+  max-height: 600px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) transparent;
+}
+
+.transcript-area::-webkit-scrollbar {
+  width: 6px;
+}
+
+.transcript-area::-webkit-scrollbar-thumb {
+  background-color: var(--primary);
+  border-radius: 10px;
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-outline {
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  background: transparent;
+}
+
+/* Toast notifications */
+.toast-container {
+  z-index: 1000;
+}
+
+.toast {
+  background-color: var(--bg-card);
+  border-left-width: 4px;
+  animation: slideIn 0.3s ease forwards;
+}
+
+.toast.success { border-left-color: var(--success); }
+.toast.error { border-left-color: var(--error); }
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Progress Bar */
+.progress-bar-fill {
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(90deg, #7c3aed 0%, #06b6d4 100%);
+  background-size: 200% 100%;
+}
+
+/* Animations */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, 
+    rgba(255,255,255,0) 0%, 
+    rgba(255,255,255,0.05) 50%, 
+    rgba(255,255,255,0) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Utils */
+.text-secondary {
+  color: var(--text-secondary) !important;
+}
+
+/* Toggle Switch */
+.toggle-bg {
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-card);
+}
+
+/* Footer & Global Overrides */
+footer {
+  border-top-color: var(--border-card) !important;
+}
+
+label {
+  color: var(--text-secondary);
+}
+
+/* Ensure placeholder colors match theme */
+::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
