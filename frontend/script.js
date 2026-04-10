@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lastTranscript: null,
         abortController: null,
         theme: localStorage.getItem('theme') || 'dark',
+        currentTitle: 'transcript',
         backendUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
             ? 'http://localhost:8000' 
             : '' // Relative if deployed together, or put Railway URL here
@@ -87,9 +88,19 @@ document.addEventListener('DOMContentLoaded', () => {
         // Export Actions
         elements.copyTextBtn.addEventListener('click', () => copyToClipboard(elements.transcriptContainer.innerText, 'Text copied!'));
         elements.copyJsonBtn.addEventListener('click', () => copyToClipboard(JSON.stringify(state.lastTranscript, null, 2), 'JSON copied!'));
-        elements.downloadTxtBtn.addEventListener('click', () => downloadFile('transcript.txt', elements.transcriptContainer.innerText));
-        elements.downloadSrtBtn.addEventListener('click', () => downloadFile('transcript.srt', generateSRT(state.lastTranscript)));
-        elements.downloadMdBtn.addEventListener('click', () => downloadFile('transcript.md', generateMarkdown(state.lastTranscript)));
+        
+        elements.downloadTxtBtn.addEventListener('click', () => {
+            const filename = `${sanitizeFilename(state.currentTitle)}.txt`;
+            downloadFile(filename, elements.transcriptContainer.innerText);
+        });
+        elements.downloadSrtBtn.addEventListener('click', () => {
+            const filename = `${sanitizeFilename(state.currentTitle)}.srt`;
+            downloadFile(filename, generateSRT(state.lastTranscript));
+        });
+        elements.downloadMdBtn.addEventListener('click', () => {
+            const filename = `${sanitizeFilename(state.currentTitle)}.md`;
+            downloadFile(filename, generateMarkdown(state.lastTranscript));
+        });
     }
 
     function setupKeyboardShortcuts() {
@@ -147,6 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!infoRes.ok) throw await infoRes.json();
                 
                 const info = await infoRes.json();
+                state.currentTitle = info.title;
                 showVideoInfo(info);
                 formData.append('url', url);
             } catch (err) {
@@ -155,6 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
         } else if (file) {
+            state.currentTitle = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
             elements.videoTitle.innerText = file.name;
             elements.videoChannel.innerText = `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
             formData.append('file', file);
@@ -235,6 +248,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         elements.transcriptContainer.innerHTML = content;
+        
+        // Add title to result for persistence
+        result.title = state.currentTitle;
         localStorage.setItem('lastTranscript', JSON.stringify(result));
         
         // Scroll to result
@@ -336,6 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const saved = localStorage.getItem('lastTranscript');
         if (saved) {
             state.lastTranscript = JSON.parse(saved);
+            state.currentTitle = state.lastTranscript.title || 'transcript';
             showResult(state.lastTranscript);
             showToast('Last transcript restored.', 'info');
         }
@@ -380,7 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function generateMarkdown(data) {
         if (!data) return "";
-        let md = `# Transcription Result\n\n`;
+        let md = `# ${state.currentTitle}\n\n`;
         md += `**Model:** ${data.model_used}\n`;
         md += `**Duration:** ${formatTime(data.duration)}\n\n---\n\n`;
         
@@ -390,5 +407,9 @@ document.addEventListener('DOMContentLoaded', () => {
             md += data.transcript;
         }
         return md;
+    }
+
+    function sanitizeFilename(filename) {
+        return filename.replace(/[^a-z0-9]/gi, '_').toLowerCase().substring(0, 50);
     }
 });
