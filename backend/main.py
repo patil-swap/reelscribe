@@ -102,7 +102,8 @@ async def transcribe(
     file: Optional[UploadFile] = File(None),
     url: Optional[str] = Form(None),
     model: str = Form("large-v3-turbo"),
-    timestamps: bool = Form(True)
+    timestamps: bool = Form(True),
+    language: Optional[str] = Form(None)
 ):
     temp_file_path = None
     try:
@@ -139,7 +140,7 @@ async def transcribe(
         if not temp_file_path or not os.path.exists(temp_file_path):
             raise HTTPException(status_code=500, detail="Failed to prepare file for transcription.")
 
-        result = await services.transcribe_audio(temp_file_path, model, timestamps)
+        result = await services.transcribe_audio(temp_file_path, model, timestamps, language)
         return result
 
     except HTTPException as he:

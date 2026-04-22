@@ -100,7 +100,7 @@ async def get_video_info(url: str) -> Dict[str, Any]:
         logger.error(f"Metadata fetch failed: {str(e)}")
         raise Exception("Failed to fetch video information.")
 
-async def transcribe_audio(file_path: str, model: str = "large-v3", include_timestamps: bool = True) -> Dict[str, Any]:
+async def transcribe_audio(file_path: str, model: str = "large-v3", include_timestamps: bool = True, language: Optional[str] = None) -> Dict[str, Any]:
     """
     Transcribes an audio file using Groq, with fallback to Deepgram.
     """
@@ -108,7 +108,7 @@ async def transcribe_audio(file_path: str, model: str = "large-v3", include_time
         # 1. Try Groq
         if groq_client:
             logger.info(f"Attempting transcription with Groq: {model}")
-            result = await transcribe_with_groq(file_path, model, include_timestamps)
+            result = await transcribe_with_groq(file_path, model, include_timestamps, language)
             return {**result, "model_used": f"Groq ({model})"}
     except Exception as groq_error:
         logger.warning(f"Groq transcription failed, falling back to Deepgram: {str(groq_error)}")
@@ -124,15 +124,18 @@ async def transcribe_audio(file_path: str, model: str = "large-v3", include_time
 
     raise Exception("No transcription service available.")
 
-async def transcribe_with_groq(file_path: str, model: str, include_timestamps: bool) -> Dict[str, Any]:
+async def transcribe_with_groq(file_path: str, model: str, include_timestamps: bool, language: Optional[str] = None) -> Dict[str, Any]:
     """Helper to call Groq API"""
     with open(file_path, "rb") as file:
         def call_groq():
-            return groq_client.audio.transcriptions.create(
-                file=(os.path.basename(file_path), file.read()),
-                model=model,
-                response_format="verbose_json" if include_timestamps else "json",
-            )
+            params = {
+                "file": (os.path.basename(file_path), file.read()),
+                "model": model,
+                "response_format": "verbose_json" if include_timestamps else "json",
+            }
+            if language:
+                params["language"] = language
+            return groq_client.audio.transcriptions.create(**params)
 
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(None, call_groq)

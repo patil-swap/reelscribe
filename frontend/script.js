@@ -13,9 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
         theme: localStorage.getItem('theme') || 'dark',
         currentTitle: 'transcript',
         currentView: 'transcript', // 'transcript' | 'remix'
-        userVoice: null,
+        userVoice: localStorage.getItem('reelscribe_voice') || '',
         library: [],
-        libraryView: 'grid',
+        libraryView: 'grid', // grid or list
+        libSelectedItems: new Set(), // For multi-select and bulk actions
+        libFilterType: 'all', // all, original, imported, remix
         selectedSources: [], // IDs for remixing
         backendUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
             ? 'http://localhost:8000' 
@@ -112,6 +114,18 @@ document.addEventListener('DOMContentLoaded', () => {
         libPreviewText: document.getElementById('lib-preview-text'),
         libPreviewRemixBtn: document.getElementById('lib-preview-remix-btn'),
         libPreviewCloseBtn: document.getElementById('lib-preview-close-btn'),
+        
+        // Advanced & Bulk
+        englishToggle: document.getElementById('english-toggle'),
+        remixBackBtn: document.getElementById('remix-back-btn'),
+        remixPlatform: document.getElementById('remix-platform'),
+        hookSlider: document.getElementById('hook-slider'),
+        hookStrengthLabel: document.getElementById('hook-strength-label'),
+        remixTimestampToggle: document.getElementById('remix-timestamp-toggle'),
+        libImportFolderBtn: document.getElementById('lib-import-folder-btn'),
+        libExportZipBtn: document.getElementById('lib-export-zip-btn'),
+        libFilterType: document.getElementById('lib-filter-type'),
+        libSelectedCount: document.getElementById('lib-selected-count'),
     };
 
     // --- DB Setup (IndexedDB) ---
@@ -232,6 +246,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const formData = new FormData();
         formData.append('model', elements.modelSelect.value);
         formData.append('timestamps', elements.timestampToggle.checked);
+        if (elements.englishToggle.checked) {
+            formData.append('language', 'en');
+        }
 
         try {
             if (url) {
@@ -312,7 +329,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const activeEmotion = document.querySelector('.emotion-pill.active')?.dataset.emotion || 'raw';
         const length = document.querySelector('.remix-len-btn.glass-active')?.dataset.len || '60s';
-        const userPrompt = `emotion: ${activeEmotion} + draft: ${elements.remixPrompt.value}`;
+        
+        // Advanced settings
+        const platform = elements.remixPlatform.value !== 'none' ? `Platform: ${elements.remixPlatform.value}` : '';
+        const hookStr = elements.hookSlider.value;
+        const hookDesc = hookStr === '1' ? 'Subtle Hook' : hookStr === '3' ? 'Aggressive/Viral Hook' : 'Normal Hook';
+        const tsCues = elements.remixTimestampToggle.checked ? 'Include timestamp cues [00:00] for cuts.' : '';
+
+        const userPrompt = `emotion: ${activeEmotion} | ${platform} | ${hookDesc} | ${tsCues} | draft: ${elements.remixPrompt.value}`;
         
         state.isLoading = true;
         elements.generateRemixBtn.disabled = true;
@@ -423,23 +447,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderLibrary() {
         const query = elements.libSearch.value.toLowerCase();
-        const filtered = state.library.filter(item => 
-            item.title.toLowerCase().includes(query) || 
-            item.transcript.toLowerCase().includes(query)
-        ).sort((a,b) => new Date(b.date) - new Date(a.date));
+        const filterType = state.libFilterType;
+
+        const filtered = state.library.filter(item => {
+            const matchesQuery = item.title.toLowerCase().includes(query) || item.transcript.toLowerCase().includes(query);
+            const matchesType = filterType === 'all' || (item.type || 'transcript') === filterType;
+            return matchesQuery && matchesType;
+        }).sort((a,b) => new Date(b.date) - new Date(a.date));
 
         const layoutClass = state.libraryView === 'list' ? 'flex flex-col gap-4' : 'library-grid';
 
         elements.libraryContent.innerHTML = `
             <div class="${layoutClass}">
-                ${filtered.length === 0 ? '<p class="text-secondary text-sm col-span-full text-center py-8">No items in library yet.</p>' : ''}
+                ${filtered.length === 0 ? '<p class="text-secondary text-sm col-span-full text-center py-8">No items match your filter.</p>' : ''}
                 ${filtered.map(item => `
-                    <div class="library-item glass p-5 space-y-3 flex flex-col cursor-pointer group" data-id="${item.id}" onclick="openLibraryPreview('${item.id}')">
-                        <div class="flex justify-between items-start">
+                    <div class="library-item glass p-5 space-y-3 flex flex-col cursor-pointer group relative" data-id="${item.id}" onclick="openLibraryPreview('${item.id}')">
+                        <div class="absolute top-4 right-4 z-10" onclick="event.stopPropagation()">
+                            <input type="checkbox" class="lib-checkbox rounded border-white/10 bg-dark/50 text-primary focus:ring-primary/40 cursor-pointer w-4 h-4" 
+                                onchange="toggleLibrarySelection('${item.id}', this.checked)"
+                                ${state.libSelectedItems.has(item.id) ? 'checked' : ''}>
+                        </div>
+                        <div class="flex justify-between items-start pr-8">
                             <span class="text-[9px] font-black uppercase ${item.type === 'remix' ? 'text-cyan-400' : 'text-secondary'}">${item.type || 'transcript'}</span>
                             <span class="text-[9px] text-white/30">${new Date(item.date).toLocaleDateString()}</span>
                         </div>
-                        <h4 class="font-bold text-sm line-clamp-2">${item.title}</h4>
+                        <h4 class="font-bold text-sm line-clamp-2 pr-2">${item.title}</h4>
                         <p class="text-xs text-secondary line-clamp-3">${item.transcript}</p>
                         ${item.tags && item.tags.length ? `<div class="flex flex-wrap gap-1">${item.tags.map(t => `<span class="library-tag">#${t}</span>`).join('')}</div>` : ''}
                         <div class="mt-auto pt-4 flex justify-between items-center">
@@ -450,6 +482,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 `).join('')}
             </div>
         `;
+
+        updateBulkActionsVisibility();
+    }
+
+    window.toggleLibrarySelection = (id, checked) => {
+        if (checked) {
+            state.libSelectedItems.add(id);
+        } else {
+            state.libSelectedItems.delete(id);
+        }
+        updateBulkActionsVisibility();
+    };
+
+    function updateBulkActionsVisibility() {
+        elements.libSelectedCount.innerText = state.libSelectedItems.size;
+        if (state.libSelectedItems.size > 0) {
+            elements.libBulkImport.classList.remove('hidden');
+        } else {
+            elements.libBulkImport.classList.add('hidden');
+        }
     }
 
     window.importToRemix = (id) => {
@@ -581,6 +633,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
         elements.libViewGrid.onclick = () => setLibraryView('grid');
         elements.libViewList.onclick = () => setLibraryView('list');
+
+        // Advanced & Bulk features listeners
+        elements.remixBackBtn.onclick = () => switchView('transcript');
+        
+        elements.hookSlider.oninput = () => {
+            const val = elements.hookSlider.value;
+            elements.hookStrengthLabel.innerText = val === '1' ? 'Subtle' : val === '3' ? 'Viral' : 'Normal';
+        };
+
+        elements.libFilterType.onchange = renderLibrary;
+        
+        elements.libBulkImport.onclick = () => {
+            const ids = Array.from(state.libSelectedItems);
+            ids.forEach(id => {
+                const item = state.library.find(i => i.id === id);
+                if (item && !state.selectedSources.find(s => s.id === id)) {
+                    state.selectedSources.push(item);
+                }
+            });
+            loadSourcesIntoRemix(state.selectedSources);
+            elements.libraryModal.classList.add('hidden');
+            switchView('remix');
+            showToast(`${ids.length} item(s) added to remix.`, 'success');
+        };
+
+        elements.libExportZipBtn.onclick = handleZipExport;
+        elements.libImportFolderBtn.onclick = handleFolderImport;
 
         elements.saveVoiceBtn.onclick = () => {
             const val = elements.voiceInput.value.trim();
@@ -744,6 +823,100 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.libUploadInput.value = ''; // Reset
         await loadLibrary();
         showToast(`Successfully imported ${importedCount} files!`, 'success');
+    }
+
+    async function handleZipExport() {
+        if (state.libSelectedItems.size === 0) return;
+        
+        try {
+            showToast('Generating ZIP...', 'info');
+            const zip = new JSZip();
+            
+            for (const id of state.libSelectedItems) {
+                const item = state.library.find(i => i.id === id);
+                if (item) {
+                    const safeTitle = (item.title || 'transcript').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                    const fileName = `${safeTitle}_${item.id.substring(0,6)}.txt`;
+                    zip.file(fileName, item.transcript);
+                }
+            }
+            
+            const content = await zip.generateAsync({ type: 'blob' });
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `reelscribe_export_${new Date().toISOString().split('T')[0]}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showToast('ZIP Export downloaded!', 'success');
+        } catch (err) {
+            console.error(err);
+            showToast('Failed to export ZIP.', 'error');
+        }
+    }
+
+    async function handleFolderImport() {
+        if (!window.showDirectoryPicker) {
+            alert("Your browser doesn't support Folder Import. Please use Chrome/Edge or the 'Import Files' button instead.");
+            return;
+        }
+
+        try {
+            const dirHandle = await window.showDirectoryPicker();
+            showToast('Scanning folder...', 'info');
+            let importedCount = 0;
+
+            async function processDirectory(dir) {
+                for await (const entry of dir.values()) {
+                    if (entry.kind === 'file') {
+                        const file = await entry.getFile();
+                        const fileNameLower = file.name.toLowerCase();
+                        
+                        if (fileNameLower.endsWith('.txt')) {
+                            const text = await file.text();
+                            await saveToDB({
+                                id: uuid(),
+                                title: file.name.replace(/\.txt$/i, ''),
+                                transcript: text,
+                                date: new Date().toISOString(),
+                                type: 'imported'
+                            });
+                            importedCount++;
+                        } else if (fileNameLower.endsWith('.json')) {
+                            try {
+                                const text = await file.text();
+                                const data = JSON.parse(text);
+                                if (data.transcript) {
+                                    await saveToDB({
+                                        ...data,
+                                        id: data.id || uuid(),
+                                        title: data.title || file.name.replace(/\.json$/i, ''),
+                                        date: data.date || new Date().toISOString(),
+                                        type: data.type || 'imported'
+                                    });
+                                    importedCount++;
+                                }
+                            } catch (e) { /* skip bad json */ }
+                        }
+                    } else if (entry.kind === 'directory') {
+                        await processDirectory(entry);
+                    }
+                }
+            }
+
+            await processDirectory(dirHandle);
+            await loadLibrary();
+            showToast(`Imported ${importedCount} items from folder.`, 'success');
+
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                console.error(err);
+                showToast('Failed to import folder.', 'error');
+            }
+        }
     }
 
     function handleError(err) {
