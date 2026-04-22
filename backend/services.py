@@ -2,7 +2,11 @@ import os
 import asyncio
 import uuid
 import yt_dlp
+import json
+import httpx
 from groq import Groq
+from prompts.remix import REMIX_SYSTEM_PROMPT
+from prompts.remix_fallback import REMIX_FALLBACK_PROMPT
 try:
     from deepgram import DeepgramClient, PrerecordedOptions
 except ImportError:
@@ -133,14 +137,22 @@ async def transcribe_with_groq(file_path: str, model: str, include_timestamps: b
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(None, call_groq)
         
-        # Verbose JSON contains segments
-        if hasattr(response, 'segments'):
-            segments = [
-                {"start": s.get("start"), "end": s.get("end"), "text": s.get("text")} 
-                for s in response.segments
-            ]
+        # Handle Pydantic V1/V2 and plain object differences
+        if hasattr(response, 'model_dump'):
+            resp_dict = response.model_dump()
+        elif hasattr(response, 'dict'):
+            resp_dict = response.dict()
         else:
-            segments = []
+            resp_dict = response.__dict__ if hasattr(response, '__dict__') else {}
+
+        raw_segments = resp_dict.get('segments') or getattr(response, 'segments', [])
+        
+        segments = []
+        for s in raw_segments:
+            if isinstance(s, dict):
+                segments.append({"start": s.get("start"), "end": s.get("end"), "text": s.get("text")})
+            else:
+                segments.append({"start": getattr(s, "start", 0), "end": getattr(s, "end", 0), "text": getattr(s, "text", "")})
 
         return {
             "transcript": response.text,
@@ -207,3 +219,77 @@ async def transcribe_with_deepgram(file_path: str) -> Dict[str, Any]:
             "segments": segments,
             "duration": duration
         }
+
+async def generate_script(sources: List[str], user_prompt: str, length: str, blend: float) -> Dict[str, Any]:
+    """Generates a remixed script from multiple source transcripts."""
+    combined_sources = "\n---\n".join(sources)
+    prompt = f"userPrompt: {user_prompt}\nlength: {length}\nblend: {blend: .1f}\n\nSources:\n{combined_sources}"
+    
+    try:
+        # 1. Try Groq
+        if groq_client:
+            logger.info("Attempting script generation with Groq")
+            response = await call_llm_groq(REMIX_SYSTEM_PROMPT, prompt)
+            return parse_json_response(response)
+    except Exception as e:
+        logger.warning(f"Groq generation failed, retrying with fallback prompt: {e}")
+        try:
+            response = await call_llm_groq(REMIX_FALLBACK_PROMPT, prompt)
+            return parse_json_response(response)
+        except Exception as e2:
+            logger.error(f"Groq retry failed: {e2}")
+            
+    # 2. Try Ollama (Local Fallback)
+    try:
+        logger.info("Attempting script generation with Ollama fallback")
+        response = await call_llm_ollama(REMIX_SYSTEM_PROMPT, prompt)
+        return parse_json_response(response)
+    except Exception as e3:
+        logger.error(f"Ollama fallback failed: {e3}")
+        raise Exception("Remix failed. Please ensure Ollama is running or Groq is available.")
+
+async def call_llm_groq(system_prompt: str, user_prompt: str) -> str:
+    """Helper to call Groq Chat Completion"""
+    completion = groq_client.chat.completions.create(
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        model="llama-3.1-8b-instant",
+        response_format={"type": "json_object"}
+    )
+    return completion.choices[0].message.content
+
+async def call_llm_ollama(system_prompt: str, user_prompt: str) -> str:
+    """Helper to call local Ollama API"""
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": "gemma4:31b-cloud",  # Match PRD or adjust for available models
+                "system": system_prompt,
+                "prompt": user_prompt,
+                "stream": False,
+                "format": "json"
+            },
+            timeout=60.0
+        )
+        response.raise_for_status()
+        return response.json().get("response", "")
+
+def parse_json_response(text: str) -> Dict[str, Any]:
+    """Cleans and parses JSON from LLM output"""
+    try:
+        # Remove markdown code blocks if present
+        cleaned = text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.split("\n", 1)[1]
+        if cleaned.endswith("```"):
+            cleaned = cleaned.rsplit("\n", 1)[0]
+        if cleaned.startswith("json"):
+            cleaned = cleaned.split("json", 1)[1]
+            
+        return json.loads(cleaned)
+    except Exception as e:
+        logger.error(f"Failed to parse LLM JSON: {e} - Raw: {text}")
+        raise Exception("LLM returned malformed JSON. Retrying might help.")

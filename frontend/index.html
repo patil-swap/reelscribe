@@ -23,6 +23,9 @@
         }
     </script>
     <link rel="stylesheet" href="style.css">
+    <!-- Diff & Google Services -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body class="p-4 sm:p-8 flex flex-col items-center">
     
@@ -36,11 +39,17 @@
             </div>
             <p class="text-secondary text-center">Transcribe YouTube videos, Reels & audio files in seconds.</p>
             
-            <!-- Theme Toggle -->
-            <button id="theme-toggle" class="absolute top-6 right-6 p-2 rounded-full glass glass-hover transition-all">
-                <svg id="sun-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.071 16.071l.707.707M7.757 7.757l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"></path></svg>
-                <svg id="moon-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
-            </button>
+            <!-- Top Controls -->
+            <div class="absolute top-6 right-6 flex items-center gap-3">
+                <button id="library-btn" class="p-2.5 rounded-full glass glass-hover transition-all flex items-center gap-2 px-4">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+                    <span class="text-xs font-bold uppercase tracking-wider hidden sm:inline">Library</span>
+                </button>
+                <button id="theme-toggle" class="p-2.5 rounded-full glass glass-hover transition-all">
+                    <svg id="sun-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.071 16.071l.707.707M7.757 7.757l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"></path></svg>
+                    <svg id="moon-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                </button>
+            </div>
         </header>
 
         <!-- Main Content -->
@@ -73,8 +82,11 @@
                     <span class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">WAV</span>
                     <span class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">M4A</span>
                     <span class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">WEBM</span>
+                    <span class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">MOV</span>
+                    <span class="px-2 py-1 text-[10px] glass border border-primary/30 uppercase tracking-wider font-bold text-primary">TXT</span>
+                    <span class="px-2 py-1 text-[10px] glass border border-primary/30 uppercase tracking-wider font-bold text-primary">JSON</span>
                 </div>
-                <input type="file" id="file-input" class="hidden" accept="audio/*,video/*">
+                <input type="file" id="file-input" class="hidden" accept="audio/*,video/*,text/plain,application/json,.txt,.json">
             </div>
 
             <!-- Options Row -->
@@ -111,6 +123,10 @@
                     <div class="flex-1 min-w-0">
                         <h3 id="video-title" class="font-bold truncate">Processing...</h3>
                         <p id="video-channel" class="text-sm text-secondary truncate"></p>
+                        <div class="flex gap-3 mt-1">
+                            <span id="video-duration" class="hidden text-xs text-secondary/60"></span>
+                            <span id="video-views" class="hidden text-xs text-secondary/60"></span>
+                        </div>
                     </div>
                     <button id="cancel-btn" class="p-2 hover:bg-white/10 rounded-full transition-colors text-secondary" title="Cancel">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -129,37 +145,133 @@
 
             <!-- Result Section (Hidden by default) -->
             <section id="result-section" class="hidden w-full space-y-4">
-                <div class="flex items-center justify-between px-2">
-                    <h2 class="text-xl font-bold">Transcript Result</h2>
+                <!-- Tab Switching -->
+                <div class="flex items-center justify-between px-2 mb-2">
+                    <div class="flex glass p-1 rounded-xl">
+                        <button id="tab-transcript" class="px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all glass-active">Transcript</button>
+                        <button id="tab-remix" class="px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all text-secondary hover:bg-white/5">Remix Studio</button>
+                    </div>
                     <button id="reset-btn" class="text-xs font-semibold text-primary hover:underline uppercase tracking-widest">
                         Transcribe Another
                     </button>
                 </div>
 
-                <div id="transcript-container" class="glass p-6 leading-relaxed transcript-area whitespace-pre-wrap" contenteditable="true">
-                    <!-- Transcript will live here -->
-                </div>
+                <!-- View Container -->
+                <div id="view-container" class="space-y-4">
+                    <!-- Transcript View -->
+                    <div id="view-transcript" class="space-y-4">
+                        <div id="transcript-container" class="glass p-6 leading-relaxed transcript-area whitespace-pre-wrap" contenteditable="true">
+                            <!-- Transcript will live here -->
+                        </div>
 
-                <div class="flex flex-col md:flex-row gap-4 justify-between items-center py-2">
-                    <div class="flex gap-2">
-                        <button id="copy-text" class="px-4 py-2 glass glass-hover text-xs font-medium rounded-lg flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                            Copy Text
-                        </button>
-                        <button id="copy-json" class="px-4 py-2 glass glass-hover text-xs font-medium rounded-lg flex items-center gap-2">
-                            JSON
-                        </button>
+                        <div class="flex flex-col md:flex-row gap-4 justify-between items-center py-2">
+                            <div class="flex gap-2 flex-wrap">
+                                <button id="copy-text" class="px-4 py-2 glass glass-hover text-xs font-medium rounded-lg flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                    Copy Text
+                                </button>
+                                <button id="copy-timestamps" class="px-4 py-2 glass glass-hover text-xs font-medium rounded-lg flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    Copy + Timestamps
+                                </button>
+                                <button id="copy-json" class="px-4 py-2 glass glass-hover text-xs font-medium rounded-lg flex items-center gap-2">JSON</button>
+                            </div>
+                            <div class="flex gap-2">
+                                <button id="download-txt" class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">TXT</button>
+                                <button id="download-srt" class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">SRT</button>
+                                <button id="download-vtt" class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">VTT</button>
+                                <button id="download-md" class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">MD</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="flex gap-2">
-                        <button id="download-txt" class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">
-                            TXT
-                        </button>
-                        <button id="download-srt" class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">
-                            SRT
-                        </button>
-                        <button id="download-md" class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">
-                            MD
-                        </button>
+
+                    <!-- Remix View -->
+                    <div id="view-remix" class="hidden space-y-6">
+                        <div class="glass p-6 space-y-6">
+                            <!-- Remix Source Selection -->
+                            <div>
+                                <label class="text-xs font-bold text-secondary uppercase tracking-widest block mb-3">Loaded Sources</label>
+                                <div id="remix-source-list" class="flex flex-wrap gap-2">
+                                    <!-- Source chips here -->
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-4">
+                                    <label class="text-xs font-bold text-secondary uppercase tracking-widest block">Remix Controls</label>
+                                    
+                                    <!-- Emotion Pills -->
+                                    <div class="flex flex-wrap gap-2" id="emotion-container">
+                                        <button class="emotion-pill" data-emotion="raw">Raw</button>
+                                        <button class="emotion-pill" data-emotion="energetic">Energetic</button>
+                                        <button class="emotion-pill" data-emotion="thoughtful">Thoughtful</button>
+                                        <button class="emotion-pill" data-emotion="aggressive">Aggressive</button>
+                                    </div>
+
+                                    <!-- Prompt Draft -->
+                                    <textarea id="remix-prompt" class="w-full h-24 glass p-4 text-xs resize-none outline-none focus:ring-1 focus:ring-primary/40" placeholder="Add custom hook or draft phrases..."></textarea>
+                                </div>
+
+                                <div class="space-y-6">
+                                    <!-- Length Selector -->
+                                    <div>
+                                        <label class="text-xs font-bold text-secondary uppercase tracking-widest block mb-4">Target Length</label>
+                                        <div class="flex glass p-1 rounded-lg">
+                                            <button data-len="30s" class="remix-len-btn flex-1 py-2 rounded text-[10px] uppercase font-bold tracking-tighter transition-all">30s</button>
+                                            <button data-len="60s" class="remix-len-btn flex-1 py-2 rounded text-[10px] uppercase font-bold tracking-tighter transition-all glass-active">60s</button>
+                                            <button data-len="90s" class="remix-len-btn flex-1 py-2 rounded text-[10px] uppercase font-bold tracking-tighter transition-all">90s</button>
+                                            <button data-len="long" class="remix-len-btn flex-1 py-2 rounded text-[10px] uppercase font-bold tracking-tighter transition-all">Long</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Blend Slider -->
+                                    <div>
+                                        <div class="flex justify-between text-[10px] uppercase font-bold text-secondary mb-2">
+                                            <span>Pure Sources</span>
+                                            <span>Heavy Remix</span>
+                                        </div>
+                                        <input type="range" id="blend-slider" min="0" max="1" step="0.1" value="0.7" class="w-full accent-primary h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer">
+                                    </div>
+
+                                    <button id="generate-remix-btn" class="w-full py-4 bg-gradient-purple rounded-xl font-bold uppercase tracking-widest hover:scale-[1.01] transition-transform flex items-center justify-center gap-3">
+                                        <svg class="w-5 h-5 animate-pulse-soft" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L9 9H2L7 14L5 21L12 17L19 21L17 14L22 9H15L12 2Z"></path></svg>
+                                        Generate Script
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Remix Result Card -->
+                        <div id="remix-result" class="hidden space-y-4">
+                            <div class="flex items-center justify-between px-2">
+                                <h3 class="text-lg font-bold">Generated Script</h3>
+                                <div class="flex gap-2">
+                                    <button id="remix-variant-btn" class="text-[10px] font-bold text-primary glass px-3 py-1.5 rounded uppercase">Remix This Variant</button>
+                                    <button id="save-variant-btn" class="text-[10px] font-bold text-cyan-400 glass px-3 py-1.5 rounded uppercase">Save to Library</button>
+                                    <button id="diff-toggle-btn" class="text-[10px] font-bold text-secondary glass px-3 py-1.5 rounded uppercase">Show Diff</button>
+                                </div>
+                            </div>
+                            
+                            <!-- Side by Side Diff Area -->
+                            <div id="diff-area" class="hidden grid grid-cols-2 gap-px bg-white/5 border border-white/10 rounded-xl overflow-hidden min-h-[400px]">
+                                <div class="bg-dark/40 p-6 flex flex-col">
+                                    <span class="text-[10px] font-black uppercase text-secondary mb-4 tracking-tighter opacity-50">Original Transcript</span>
+                                    <div id="diff-left" class="diff-content text-sm leading-relaxed font-mono"></div>
+                                </div>
+                                <div class="bg-dark/40 p-6 flex flex-col">
+                                    <span class="text-[10px] font-black uppercase text-secondary mb-4 tracking-tighter opacity-50">Remixed Script</span>
+                                    <div id="diff-right" class="diff-content text-sm leading-relaxed font-mono"></div>
+                                </div>
+                            </div>
+
+                            <div class="glass p-8 space-y-6">
+                                <input id="remix-title" class="bg-transparent text-2xl font-bold border-none outline-none w-full text-gradient" value="The Hook">
+                                <div id="remix-output" class="transcript-area text-lg leading-relaxed outline-none" contenteditable="true">
+                                    Your remixed script will appear here...
+                                </div>
+                                <div id="remix-tags" class="flex flex-wrap gap-2 border-t border-white/5 pt-4"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -179,8 +291,86 @@
         </footer>
     </div>
 
-    <!-- Toast Container -->
-    <div id="toast-container" class="fixed bottom-6 right-6 flex flex-col gap-3 max-w-sm w-full"></div>
+    <!-- Library Preview Modal -->
+    <div id="lib-preview-modal" class="fixed inset-0 z-[70] hidden bg-dark/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass w-full max-w-3xl max-h-[80vh] flex flex-col rounded-3xl overflow-hidden">
+            <div class="p-6 border-b border-white/5 flex items-start justify-between gap-4">
+                <div>
+                    <span id="lib-preview-type" class="text-[9px] font-black uppercase text-secondary block mb-1"></span>
+                    <h3 id="lib-preview-title" class="text-xl font-bold"></h3>
+                    <p id="lib-preview-date" class="text-xs text-secondary/60 mt-1"></p>
+                </div>
+                <div class="flex gap-2 shrink-0">
+                    <button id="lib-preview-remix-btn" class="px-4 py-2 bg-gradient-purple text-white text-xs font-bold rounded-xl uppercase tracking-wider">Import to Remix</button>
+                    <button id="lib-preview-close-btn" class="p-2 glass glass-hover rounded-full">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+            </div>
+            <div id="lib-preview-text" class="flex-1 overflow-y-auto p-8 text-sm leading-relaxed font-mono whitespace-pre-wrap text-secondary"></div>
+        </div>
+    </div>
+
+    <!-- Library Modal -->
+    <div id="library-modal" class="fixed inset-0 z-50 hidden bg-dark/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden rounded-3xl">
+            <div class="p-6 border-b border-white/5 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <h2 class="text-xl font-bold">Your Library</h2>
+                    <div class="flex glass p-0.5 rounded-lg">
+                        <button id="lib-view-grid" class="p-1.5 rounded-md glass-active"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg></button>
+                        <button id="lib-view-list" class="p-1.5 rounded-md text-secondary"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="lib-upload-btn" class="px-4 py-2 glass glass-hover text-xs font-bold uppercase rounded-xl flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        Import Files
+                    </button>
+                    <input type="file" id="lib-upload-input" class="hidden" multiple accept=".txt,.json,text/plain,application/json">
+                    
+                    <button id="gdrive-backup-btn" class="px-4 py-2 glass glass-hover text-xs font-bold uppercase rounded-xl flex items-center gap-2 text-primary border-primary/20">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"></path></svg>
+                        Cloud Backup
+                    </button>
+                    <button id="close-library-btn" class="p-2 glass glass-hover rounded-full">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-8" id="library-content">
+                <!-- Library items here -->
+            </div>
+
+            <div class="p-6 border-t border-white/5 bg-dark/20 flex items-center justify-between">
+                <div class="flex gap-4">
+                    <input type="text" id="lib-search" placeholder="Search transcripts..." class="glass px-4 py-2 text-xs w-64 outline-none focus:ring-1 focus:ring-primary/50">
+                    <button id="lib-bulk-import" class="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl invisible">Import Selected to Remix</button>
+                </div>
+                <button id="lib-clear-all" class="text-[10px] text-red-400 font-bold uppercase tracking-widest hover:underline">Clear All Data</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Voice Modal -->
+    <div id="voice-modal" class="fixed inset-0 z-[60] hidden bg-dark/90 backdrop-blur-xl flex items-center justify-center p-4">
+        <div class="glass w-full max-w-lg p-10 rounded-3xl space-y-6 text-center relative">
+            <button id="close-voice-btn" class="absolute top-6 right-6 p-2 glass glass-hover rounded-full">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <div class="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+            </div>
+            <h2 class="text-2xl font-bold tracking-tight">Your Creative Voice</h2>
+            <p class="text-secondary text-sm">Describe your content style in 1-3 sentences. We'll use this to make your remixes sound just like you.</p>
+            <textarea id="voice-input" class="w-full h-32 glass p-5 text-sm resize-none outline-none focus:ring-2 focus:ring-primary/40 leading-relaxed" placeholder="e.g. Minecraft venting style, short sentences, curse words OK, brutal honesty, strong hooks..."></textarea>
+            <button id="save-voice-btn" class="w-full py-4 bg-gradient-purple rounded-2xl font-bold uppercase tracking-widest">Set My Profile</button>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="fixed bottom-6 right-6 flex flex-col gap-2 pointer-events-none toast-container"></div>
 
     <script src="script.js"></script>
 </body>

@@ -9,7 +9,9 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
 import logging
-from typing import Optional
+from typing import Optional, List
+from pydantic import BaseModel
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 
 try:
     import services
@@ -32,6 +34,25 @@ app = FastAPI(title="ReelScribe API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Custom Error Page Handlers
+@app.exception_handler(404)
+async def custom_404_handler(request: Request, __):
+    return FileResponse(os.path.join(frontend_path, "errors", "404.html"), status_code=404)
+
+@app.exception_handler(500)
+async def custom_500_handler(request: Request, __):
+    return FileResponse(os.path.join(frontend_path, "errors", "500.html"), status_code=500)
+
+@app.exception_handler(RateLimitExceeded)
+async def custom_rate_limit_handler(request: Request, __):
+    return FileResponse(os.path.join(frontend_path, "errors", "429.html"), status_code=429)
+
+class ScriptRequest(BaseModel):
+    sources: List[str]
+    userPrompt: str
+    length: str
+    blend: float
+
 # CORS Configuration
 allowed_origin = os.getenv("ALLOWED_ORIGIN", "*")
 app.add_middleware(
@@ -41,6 +62,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/config")
+async def get_config():
+    """Serves non-sensitive public configuration to the frontend."""
+    return {
+        "GOOGLE_CLIENT_ID": os.getenv("GOOGLE_CLIENT_ID", "")
+    }
 
 # Initialize Services
 services.init_clients(
@@ -135,6 +163,21 @@ async def transcribe(
             except Exception as cleanup_error:
                 logger.error(f"Failed to delete temp file {temp_file_path}: {str(cleanup_error)}")
 
+@app.post("/generate-script")
+@limiter.limit("20/15minutes")
+async def generate_script_endpoint(request: Request, body: ScriptRequest):
+    try:
+        result = await services.generate_script(
+            sources=body.sources,
+            user_prompt=body.userPrompt,
+            length=body.length,
+            blend=body.blend
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Error generating script: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 def uuid_name():
     import uuid
     return uuid.uuid4().hex
@@ -148,6 +191,7 @@ if __name__ == "__main__":
 try:
     frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
     if os.path.exists(frontend_path):
+        app.mount("/static", StaticFiles(directory=frontend_path), name="static")
         app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
         logger.info(f"Serving frontend from {frontend_path}")
 except Exception as e:
