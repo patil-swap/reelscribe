@@ -13,7 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
         theme: localStorage.getItem('theme') || 'dark',
         currentTitle: 'transcript',
         currentView: 'transcript', // 'transcript' | 'remix'
-        userVoice: localStorage.getItem('reelscribe_voice') || '',
+        userVoice: localStorage.getItem('userVoice') || '',
+        _voiceDismissed: false,
         library: [],
         libraryView: 'grid', // grid or list
         libSelectedItems: new Set(), // For multi-select and bulk actions
@@ -188,11 +189,14 @@ document.addEventListener('DOMContentLoaded', () => {
         setupKeyboardShortcuts();
         
         // Auto-load last transcript if exists
-        const saved = localStorage.getItem('lastTranscript');
-        if (saved) {
-            state.lastTranscript = JSON.parse(saved);
-            state.currentTitle = state.lastTranscript.title || 'transcript';
-            showResult(state.lastTranscript);
+        const savedId = localStorage.getItem('lastTranscriptId');
+        if (savedId) {
+            const item = state.library.find(i => i.id === savedId);
+            if (item) {
+                state.lastTranscript = item;
+                state.currentTitle = item.title || 'transcript';
+                showResult(item);
+            }
         }
     };
 
@@ -213,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.tabTranscript.classList.add('text-secondary');
             
             // Check for Voice Profile
-            if (!state.userVoice) {
+            if (!state.userVoice && !state._voiceDismissed) {
                 // If skipped before, don't nag too hard, but show once per session or manually
                 elements.voiceModal.classList.remove('hidden');
             }
@@ -281,7 +285,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Fake progress
             let fakeProgress = 20;
-            const timer = setInterval(() => {
+            let timer;
+            timer = setInterval(() => {
                 if (fakeProgress < 95) {
                     fakeProgress += Math.random() * 2;
                     updateProgress(fakeProgress, 'Transcribing with Whisper...');
@@ -393,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.remixOutput.innerText = data.script;
         
         // Tags
-        elements.remixTags.innerHTML = (data.tags || []).map(t => `<span class="library-tag">#${t}</span>`).join('');
+        elements.remixTags.innerHTML = (data.tags || []).map(t => `<span class="library-tag">#${escapeHtml(t)}</span>`).join('');
         
         // Setup Diff
         const originalText = state.selectedSources.map(s => s.transcript).join('\n\n');
@@ -428,7 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.selectedSources = sources;
         elements.remixSourceList.innerHTML = sources.map(s => `
             <div class="glass px-3 py-1.5 flex items-center gap-2 text-[10px] font-bold">
-                <span class="truncate max-w-[150px] opacity-70">${s.title}</span>
+                <span class="truncate max-w-[150px] opacity-70">${escapeHtml(s.title)}</span>
                 <button onclick="removeRemixSource('${s.id}')" class="hover:text-red-400">×</button>
             </div>
         `).join('');
@@ -471,9 +476,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span class="text-[9px] font-black uppercase ${item.type === 'remix' ? 'text-cyan-400' : 'text-secondary'}">${item.type || 'transcript'}</span>
                             <span class="text-[9px] text-white/30">${new Date(item.date).toLocaleDateString()}</span>
                         </div>
-                        <h4 class="font-bold text-sm line-clamp-2 pr-2">${item.title}</h4>
-                        <p class="text-xs text-secondary line-clamp-3">${item.transcript}</p>
-                        ${item.tags && item.tags.length ? `<div class="flex flex-wrap gap-1">${item.tags.map(t => `<span class="library-tag">#${t}</span>`).join('')}</div>` : ''}
+                        <h4 class="font-bold text-sm line-clamp-2 pr-2">${escapeHtml(item.title)}</h4>
+                        <p class="text-xs text-secondary line-clamp-3">${escapeHtml(item.transcript)}</p>
+                        ${item.tags && item.tags.length ? `<div class="flex flex-wrap gap-1">${item.tags.map(t => `<span class="library-tag">#${escapeHtml(t)}</span>`).join('')}</div>` : ''}
                         <div class="mt-auto pt-4 flex justify-between items-center">
                             <button onclick="event.stopPropagation(); importToRemix('${item.id}')" class="text-[10px] font-bold text-primary hover:underline">REMIX THIS</button>
                             <button onclick="event.stopPropagation(); deleteItem('${item.id}')" class="text-red-400 opacity-0 group-hover:opacity-100 italic text-[10px] transition-opacity">Delete</button>
@@ -642,7 +647,10 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.hookStrengthLabel.innerText = val === '1' ? 'Subtle' : val === '3' ? 'Viral' : 'Normal';
         };
 
-        elements.libFilterType.onchange = renderLibrary;
+        elements.libFilterType.onchange = () => {
+            state.libFilterType = elements.libFilterType.value;
+            renderLibrary();
+        };
         
         elements.libBulkImport.onclick = () => {
             const ids = Array.from(state.libSelectedItems);
@@ -673,6 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         elements.closeVoiceBtn.onclick = () => {
             elements.voiceModal.classList.add('hidden');
+            state._voiceDismissed = true;
             showToast('Using default neutral voice.', 'info');
         };
 
@@ -696,6 +705,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // File handling
         elements.dropZone.onclick = () => elements.fileInput.click();
+        elements.dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            elements.dropZone.classList.add('border-primary');
+        });
+        elements.dropZone.addEventListener('dragleave', () => {
+            elements.dropZone.classList.remove('border-primary');
+        });
+        elements.dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            elements.dropZone.classList.remove('border-primary');
+            if (e.dataTransfer.files.length) {
+                elements.fileInput.files = e.dataTransfer.files;
+                handleFileSelect();
+            }
+        });
         elements.fileInput.onchange = handleFileSelect;
     }
 
@@ -972,19 +996,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showResult(result) {
         elements.resultSection.classList.remove('hidden');
-        let html = result.transcript;
+        let html = escapeHtml(result.transcript);
         if (result.segments && result.segments.length > 0) {
-            html = result.segments.map(s => `<span class="text-secondary font-mono mr-2">[${formatTime(s.start || 0)}]</span>${s.text}`).join('\n');
+            html = result.segments.map(s => `<span class="text-secondary font-mono mr-2">[${formatTime(s.start || 0)}]</span>${escapeHtml(s.text)}`).join('\n');
         }
         elements.transcriptContainer.innerHTML = html;
-        localStorage.setItem('lastTranscript', JSON.stringify(result));
+        if (result.id) {
+            localStorage.setItem('lastTranscriptId', result.id);
+        }
     }
 
     function resetUI() {
         elements.urlInput.value = '';
         elements.fileInput.value = '';
         elements.resultSection.classList.add('hidden');
-        localStorage.removeItem('lastTranscript'); // Clear persistence for fresh start
+        localStorage.removeItem('lastTranscriptId'); // Clear persistence for fresh start
         state.lastTranscript = null;
         switchView('transcript');
     }
@@ -1028,6 +1054,7 @@ document.addEventListener('DOMContentLoaded', () => {
         a.href = u;
         a.download = name;
         a.click();
+        URL.revokeObjectURL(u);
     }
 
     function formatTime(s) {
@@ -1037,7 +1064,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function uuid() {
-        return Math.random().toString(36).substring(2, 11);
+        return crypto.randomUUID();
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 
     function setupKeyboardShortcuts() {
@@ -1047,6 +1081,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); startTranscription(); }
             // Esc closes modals
             if (e.key === 'Escape') {
+                if (state.isLoading) {
+                    state.abortController?.abort();
+                }
                 elements.libraryModal.classList.add('hidden');
                 elements.libPreviewModal.classList.add('hidden');
             }

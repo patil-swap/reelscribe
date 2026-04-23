@@ -58,7 +58,7 @@ async def extract_audio_from_url(url: str) -> str:
             return ydl.prepare_filename(info).replace('.webm', '.mp3').replace('.m4a', '.mp3')
 
     # Run in a thread to not block the event loop
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     try:
         file_path = await loop.run_in_executor(None, run_ydl)
         # Ensure the filename is correct for the .mp3 version
@@ -86,7 +86,7 @@ async def get_video_info(url: str) -> Dict[str, Any]:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             return ydl.extract_info(url, download=False)
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     try:
         info = await loop.run_in_executor(None, run_ydl_info)
         return {
@@ -108,7 +108,11 @@ async def transcribe_audio(file_path: str, model: str = "large-v3", include_time
         # 1. Try Groq
         if groq_client:
             logger.info(f"Attempting transcription with Groq: {model}")
-            result = await transcribe_with_groq(file_path, model, include_timestamps, language)
+            try:
+                result = await transcribe_with_groq(file_path, model, include_timestamps, language)
+            except Exception as e:
+                logger.warning(f"Groq primary attempt failed: {str(e)}. Retrying once...")
+                result = await transcribe_with_groq(file_path, model, include_timestamps, language)
             return {**result, "model_used": f"Groq ({model})"}
     except Exception as groq_error:
         logger.warning(f"Groq transcription failed, falling back to Deepgram: {str(groq_error)}")
@@ -137,7 +141,7 @@ async def transcribe_with_groq(file_path: str, model: str, include_timestamps: b
                 params["language"] = language
             return groq_client.audio.transcriptions.create(**params)
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         response = await loop.run_in_executor(None, call_groq)
         
         # Handle Pydantic V1/V2 and plain object differences
@@ -253,14 +257,17 @@ async def generate_script(sources: List[str], user_prompt: str, length: str, ble
 
 async def call_llm_groq(system_prompt: str, user_prompt: str) -> str:
     """Helper to call Groq Chat Completion"""
-    completion = groq_client.chat.completions.create(
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        model="llama-3.1-8b-instant",
-        response_format={"type": "json_object"}
-    )
+    loop = asyncio.get_running_loop()
+    def _call():
+        return groq_client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model="llama-3.1-8b-instant",
+            response_format={"type": "json_object"}
+        )
+    completion = await loop.run_in_executor(None, _call)
     return completion.choices[0].message.content
 
 async def call_llm_ollama(system_prompt: str, user_prompt: str) -> str:

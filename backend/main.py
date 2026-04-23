@@ -1,17 +1,17 @@
 import os
 import shutil
+import uuid
 from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
 import logging
 from typing import Optional, List
-from pydantic import BaseModel
-from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
+from pydantic import BaseModel, field_validator
+from fastapi.responses import JSONResponse, FileResponse
 
 try:
     import services
@@ -29,7 +29,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize Rate Limiter
-limiter = Limiter(key_func=get_remote_address)
+def get_real_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    from slowapi.util import get_remote_address
+    return get_remote_address(request)
+
+limiter = Limiter(key_func=get_real_ip)
+frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
 app = FastAPI(title="ReelScribe API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -53,8 +61,21 @@ class ScriptRequest(BaseModel):
     length: str
     blend: float
 
+    @field_validator('sources')
+    @classmethod
+    def validate_sources(cls, v):
+        if len(v) > 10:
+            raise ValueError('Maximum 10 sources allowed')
+        for s in v:
+            if len(s) > 50000:
+                raise ValueError('Each source must be under 50,000 characters')
+        return v
+
 # CORS Configuration
-allowed_origin = os.getenv("ALLOWED_ORIGIN", "*")
+allowed_origin = os.getenv("ALLOWED_ORIGIN")
+if not allowed_origin:
+    raise RuntimeError("ALLOWED_ORIGIN must be set. Use '*' explicitly for local dev.")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[allowed_origin] if allowed_origin != "*" else ["*"],
@@ -180,7 +201,6 @@ async def generate_script_endpoint(request: Request, body: ScriptRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 def uuid_name():
-    import uuid
     return uuid.uuid4().hex
 
 if __name__ == "__main__":
@@ -190,7 +210,6 @@ if __name__ == "__main__":
 # Serve static files from the frontend directory
 # This should be at the bottom so it doesn't override API routes
 try:
-    frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
     if os.path.exists(frontend_path):
         app.mount("/static", StaticFiles(directory=frontend_path), name="static")
         app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
