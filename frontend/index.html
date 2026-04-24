@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ReelScribe | Free AI Transcription</title>
     <link rel="icon" href="reelscribe_logo.svg">
-    <meta name="description" content="Transcribe YouTube videos, Reels, and audio files in seconds with Whisper AI. Completely free, no account required.">
+    <meta name="description"
+        content="Transcribe YouTube videos, Reels, and audio files in seconds with Whisper AI. Completely free, no account required.">
     <!-- Tailwind CSS Play CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -28,10 +30,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
+
 <body class="p-4 sm:p-8 flex flex-col items-center">
-    
+
     <div class="min-h-screen flex flex-col items-center px-4 py-8 max-w-4xl mx-auto">
-        
+
         <!-- Header -->
         <header class="w-full flex flex-col items-center mb-12">
             <div class="flex items-center gap-3 mb-2">
@@ -39,55 +42,83 @@
                 <h1 id="app-title" class="text-4xl font-bold tracking-tight text-gradient">ReelScribe</h1>
             </div>
             <p class="text-secondary text-center">Transcribe YouTube videos, Reels & audio files in seconds.</p>
-            
+
             <!-- Top Controls -->
             <div class="absolute top-6 right-6 flex items-center gap-3">
-                <button id="library-btn" class="p-2.5 rounded-full glass glass-hover transition-all flex items-center gap-2 px-4">
-                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+                <button id="library-btn"
+                    class="p-2.5 rounded-full glass glass-hover transition-all flex items-center gap-2 px-4">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2">
+                        </path>
+                    </svg>
                     <span class="text-xs font-bold uppercase tracking-wider hidden sm:inline">Library</span>
                 </button>
                 <button id="theme-toggle" class="p-2.5 rounded-full glass glass-hover transition-all">
-                    <svg id="sun-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.071 16.071l.707.707M7.757 7.757l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"></path></svg>
-                    <svg id="moon-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                    <svg id="sun-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.071 16.071l.707.707M7.757 7.757l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z">
+                        </path>
+                    </svg>
+                    <svg id="moon-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z">
+                        </path>
+                    </svg>
                 </button>
             </div>
         </header>
 
         <!-- Main Content -->
         <main class="w-full space-y-6">
-            
+
             <!-- URL Input -->
             <div class="w-full">
                 <div class="relative group">
-                    <input type="text" id="url-input" 
-                        class="w-full px-6 py-4 glass text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder-gray-500" 
+                    <input type="text" id="url-input"
+                        class="w-full px-6 py-4 glass text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder-gray-500"
                         placeholder="Paste YouTube, Instagram Reel, or TikTok URL here...">
-                    <button id="transcribe-btn" class="absolute right-2 top-2 bottom-2 px-6 bg-gradient-purple rounded-lg font-semibold hover:opacity-90 transition-all">
+                    <button id="transcribe-btn"
+                        class="absolute right-2 top-2 bottom-2 px-6 bg-gradient-purple rounded-lg font-semibold hover:opacity-90 transition-all">
                         Transcribe
                     </button>
                 </div>
             </div>
 
             <!-- File Upload Zone -->
-            <div id="drop-zone" class="w-full py-10 glass glass-hover border-dashed border-2 flex flex-col items-center gap-4 cursor-pointer transition-all">
+            <div id="drop-zone"
+                class="w-full py-10 glass glass-hover border-dashed border-2 flex flex-col items-center gap-4 cursor-pointer transition-all">
                 <div class="p-4 rounded-full bg-primary/10">
-                    <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                    <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12">
+                        </path>
+                    </svg>
                 </div>
                 <div class="text-center">
                     <p class="font-medium">Drop file here or click to upload</p>
                     <p class="text-xs text-secondary mt-1">Maximum file size: 50MB</p>
                 </div>
                 <div class="flex flex-wrap justify-center gap-2 px-4">
-                    <span class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">MP3</span>
-                    <span class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">MP4</span>
-                    <span class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">WAV</span>
-                    <span class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">M4A</span>
-                    <span class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">WEBM</span>
-                    <span class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">MOV</span>
-                    <span class="px-2 py-1 text-[10px] glass border border-primary/30 uppercase tracking-wider font-bold text-primary">TXT</span>
-                    <span class="px-2 py-1 text-[10px] glass border border-primary/30 uppercase tracking-wider font-bold text-primary">JSON</span>
+                    <span
+                        class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">MP3</span>
+                    <span
+                        class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">MP4</span>
+                    <span
+                        class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">WAV</span>
+                    <span
+                        class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">M4A</span>
+                    <span
+                        class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">WEBM</span>
+                    <span
+                        class="px-2 py-1 text-[10px] glass uppercase tracking-wider font-bold text-secondary">MOV</span>
+                    <span
+                        class="px-2 py-1 text-[10px] glass border border-primary/30 uppercase tracking-wider font-bold text-primary">TXT</span>
+                    <span
+                        class="px-2 py-1 text-[10px] glass border border-primary/30 uppercase tracking-wider font-bold text-primary">JSON</span>
                 </div>
-                <input type="file" id="file-input" class="hidden" accept="audio/*,video/*,text/plain,application/json,.txt,.json">
+                <input type="file" id="file-input" class="hidden"
+                    accept="audio/*,video/*,text/plain,application/json,.txt,.json">
             </div>
 
             <!-- Options Row -->
@@ -95,32 +126,43 @@
                 <div class="flex items-center gap-3">
                     <label class="text-sm font-medium text-secondary">AI Model:</label>
                     <div class="relative">
-                        <select id="model-select" class="w-full px-4 py-3 rounded-xl outline-none transition-all appearance-none cursor-pointer pr-12">
+                        <select id="model-select"
+                            class="w-full px-4 py-3 rounded-xl outline-none transition-all appearance-none cursor-pointer pr-12">
                             <option value="whisper-large-v3">Whisper Large v3</option>
-                            <option value="whisper-large-v3-turbo" selected>Whisper Large v3 Turbo (Recommended)</option>
+                            <option value="whisper-large-v3-turbo" selected>Whisper Large v3 Turbo (Recommended)
+                            </option>
                         </select>
                         <div class="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none">
-                             <span id="rec-badge" class="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-500 text-[9px] font-bold">REC</span>
+                            <span id="rec-badge"
+                                class="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-500 text-[9px] font-bold">REC</span>
                         </div>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-secondary">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        <div
+                            class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-secondary">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="flex items-center gap-6">
                     <div class="flex items-center gap-3">
                         <span class="text-sm font-medium text-secondary">Force English</span>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="english-toggle" class="sr-only peer">
-                            <div class="toggle-bg w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary"></div>
+                            <div
+                                class="toggle-bg w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary">
+                            </div>
                         </label>
                     </div>
                     <div class="flex items-center gap-3">
                         <span class="text-sm font-medium text-secondary">Include Timestamps</span>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="timestamp-toggle" class="sr-only peer" checked>
-                            <div class="toggle-bg w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary"></div>
+                            <div
+                                class="toggle-bg w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary">
+                            </div>
                         </label>
                     </div>
                 </div>
@@ -138,8 +180,12 @@
                             <span id="video-views" class="hidden text-xs text-secondary/60"></span>
                         </div>
                     </div>
-                    <button id="cancel-btn" class="p-2 hover:bg-white/10 rounded-full transition-colors text-secondary" title="Cancel">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    <button id="cancel-btn" class="p-2 hover:bg-white/10 rounded-full transition-colors text-secondary"
+                        title="Cancel">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
                     </button>
                 </div>
                 <div class="space-y-2">
@@ -158,10 +204,14 @@
                 <!-- Tab Switching -->
                 <div class="flex items-center justify-between px-2 mb-2">
                     <div class="flex glass p-1 rounded-xl">
-                        <button id="tab-transcript" class="px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all glass-active">Transcript</button>
-                        <button id="tab-remix" class="px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all text-secondary hover:bg-white/5">Remix Studio</button>
+                        <button id="tab-transcript"
+                            class="px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all glass-active">Transcript</button>
+                        <button id="tab-remix"
+                            class="px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all text-secondary hover:bg-white/5">Remix
+                            Studio</button>
                     </div>
-                    <button id="reset-btn" class="text-xs font-semibold text-primary hover:underline uppercase tracking-widest">
+                    <button id="reset-btn"
+                        class="text-xs font-semibold text-primary hover:underline uppercase tracking-widest">
                         Transcribe Another
                     </button>
                 </div>
@@ -170,27 +220,43 @@
                 <div id="view-container" class="space-y-4">
                     <!-- Transcript View -->
                     <div id="view-transcript" class="space-y-4">
-                        <div id="transcript-container" class="glass p-6 leading-relaxed transcript-area whitespace-pre-wrap" contenteditable="true">
+                        <div id="transcript-container"
+                            class="glass p-6 leading-relaxed transcript-area whitespace-pre-wrap"
+                            contenteditable="true">
                             <!-- Transcript will live here -->
                         </div>
 
                         <div class="flex flex-col md:flex-row gap-4 justify-between items-center py-2">
                             <div class="flex gap-2 flex-wrap">
-                                <button id="copy-text" class="px-4 py-2 glass glass-hover text-xs font-medium rounded-lg flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                <button id="copy-text"
+                                    class="px-4 py-2 glass glass-hover text-xs font-medium rounded-lg flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z">
+                                        </path>
+                                    </svg>
                                     Copy Text
                                 </button>
-                                <button id="copy-timestamps" class="px-4 py-2 glass glass-hover text-xs font-medium rounded-lg flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <button id="copy-timestamps"
+                                    class="px-4 py-2 glass glass-hover text-xs font-medium rounded-lg flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
                                     Copy + Timestamps
                                 </button>
-                                <button id="copy-json" class="px-4 py-2 glass glass-hover text-xs font-medium rounded-lg flex items-center gap-2">JSON</button>
+                                <button id="copy-json"
+                                    class="px-4 py-2 glass glass-hover text-xs font-medium rounded-lg flex items-center gap-2">JSON</button>
                             </div>
                             <div class="flex gap-2">
-                                <button id="download-txt" class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">TXT</button>
-                                <button id="download-srt" class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">SRT</button>
-                                <button id="download-vtt" class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">VTT</button>
-                                <button id="download-md" class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">MD</button>
+                                <button id="download-txt"
+                                    class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">TXT</button>
+                                <button id="download-srt"
+                                    class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">SRT</button>
+                                <button id="download-vtt"
+                                    class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">VTT</button>
+                                <button id="download-md"
+                                    class="px-4 py-2 glass border-none bg-primary/20 hover:bg-primary/30 text-xs font-medium rounded-lg flex items-center gap-2 transition-all">MD</button>
                             </div>
                         </div>
                     </div>
@@ -200,9 +266,14 @@
                         <div class="glass p-6 space-y-6">
                             <!-- Remix Source Selection & Back Arrow -->
                             <div class="flex items-center justify-between mb-3">
-                                <label class="text-xs font-bold text-secondary uppercase tracking-widest block">Loaded Sources</label>
-                                <button id="remix-back-btn" class="flex items-center gap-1 text-[10px] font-bold uppercase text-primary hover:underline">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                                <label class="text-xs font-bold text-secondary uppercase tracking-widest block">Loaded
+                                    Sources</label>
+                                <button id="remix-back-btn"
+                                    class="flex items-center gap-1 text-[10px] font-bold uppercase text-primary hover:underline">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                                    </svg>
                                     Back to Transcript
                                 </button>
                             </div>
@@ -212,8 +283,10 @@
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="space-y-4">
-                                    <label class="text-xs font-bold text-secondary uppercase tracking-widest block">Remix Controls</label>
-                                    
+                                    <label
+                                        class="text-xs font-bold text-secondary uppercase tracking-widest block">Remix
+                                        Controls</label>
+
                                     <!-- Emotion Pills -->
                                     <div class="flex flex-wrap gap-2" id="emotion-container">
                                         <button class="emotion-pill" data-emotion="raw">Raw</button>
@@ -223,18 +296,27 @@
                                     </div>
 
                                     <!-- Prompt Draft -->
-                                    <textarea id="remix-prompt" class="w-full h-24 glass p-4 text-xs resize-none outline-none focus:ring-1 focus:ring-primary/40" placeholder="Add custom hook or draft phrases..."></textarea>
-                                    
+                                    <textarea id="remix-prompt"
+                                        class="w-full h-24 glass p-4 text-xs resize-none outline-none focus:ring-1 focus:ring-primary/40"
+                                        placeholder="Add custom hook or draft phrases..."></textarea>
+
                                     <!-- Advanced Controls Collapsible -->
                                     <details class="glass p-3 rounded-xl group">
-                                        <summary class="text-[10px] font-bold text-secondary uppercase tracking-widest cursor-pointer flex justify-between items-center outline-none">
+                                        <summary
+                                            class="text-[10px] font-bold text-secondary uppercase tracking-widest cursor-pointer flex justify-between items-center outline-none">
                                             Advanced Settings
-                                            <svg class="w-4 h-4 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                            <svg class="w-4 h-4 transition-transform group-open:rotate-180" fill="none"
+                                                stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 9l-7 7-7-7"></path>
+                                            </svg>
                                         </summary>
                                         <div class="pt-4 space-y-4">
                                             <div>
-                                                <label class="text-[10px] text-white/50 block mb-1">Platform Target</label>
-                                                <select id="remix-platform" class="w-full bg-dark/50 p-2 rounded text-xs outline-none focus:ring-1 focus:ring-primary/40 appearance-none border border-white/5">
+                                                <label class="text-[10px] text-white/50 block mb-1">Platform
+                                                    Target</label>
+                                                <select id="remix-platform"
+                                                    class="w-full bg-dark/50 p-2 rounded text-xs outline-none focus:ring-1 focus:ring-primary/40 appearance-none border border-white/5">
                                                     <option value="none">General Output</option>
                                                     <option value="tiktok">TikTok</option>
                                                     <option value="ig_reel">Instagram Reel</option>
@@ -244,13 +326,18 @@
                                             <div>
                                                 <div class="flex justify-between items-center mb-1">
                                                     <label class="text-[10px] text-white/50 block">Hook Strength</label>
-                                                    <span id="hook-strength-label" class="text-[10px] text-primary">Normal</span>
+                                                    <span id="hook-strength-label"
+                                                        class="text-[10px] text-primary">Normal</span>
                                                 </div>
-                                                <input type="range" id="hook-slider" min="1" max="3" step="1" value="2" class="w-full accent-primary h-1 bg-white/10 rounded-lg appearance-none cursor-pointer">
+                                                <input type="range" id="hook-slider" min="1" max="3" step="1" value="2"
+                                                    class="w-full accent-primary h-1 bg-white/10 rounded-lg appearance-none cursor-pointer">
                                             </div>
                                             <div class="flex items-center gap-2">
-                                                <input type="checkbox" id="remix-timestamp-toggle" class="rounded border-white/10 bg-dark/50 text-primary focus:ring-primary/40">
-                                                <label for="remix-timestamp-toggle" class="text-[10px] text-white/50 cursor-pointer">Include Timestamp Cues</label>
+                                                <input type="checkbox" id="remix-timestamp-toggle"
+                                                    class="rounded border-white/10 bg-dark/50 text-primary focus:ring-primary/40">
+                                                <label for="remix-timestamp-toggle"
+                                                    class="text-[10px] text-white/50 cursor-pointer">Include Timestamp
+                                                    Cues</label>
                                             </div>
                                         </div>
                                     </details>
@@ -259,26 +346,37 @@
                                 <div class="space-y-6">
                                     <!-- Length Selector -->
                                     <div>
-                                        <label class="text-xs font-bold text-secondary uppercase tracking-widest block mb-4">Target Length</label>
+                                        <label
+                                            class="text-xs font-bold text-secondary uppercase tracking-widest block mb-4">Target
+                                            Length</label>
                                         <div class="flex glass p-1 rounded-lg">
-                                            <button data-len="30s" class="remix-len-btn flex-1 py-2 rounded text-[10px] uppercase font-bold tracking-tighter transition-all">30s</button>
-                                            <button data-len="60s" class="remix-len-btn flex-1 py-2 rounded text-[10px] uppercase font-bold tracking-tighter transition-all glass-active">60s</button>
-                                            <button data-len="90s" class="remix-len-btn flex-1 py-2 rounded text-[10px] uppercase font-bold tracking-tighter transition-all">90s</button>
-                                            <button data-len="long" class="remix-len-btn flex-1 py-2 rounded text-[10px] uppercase font-bold tracking-tighter transition-all">Long</button>
+                                            <button data-len="30s"
+                                                class="remix-len-btn flex-1 py-2 rounded text-[10px] uppercase font-bold tracking-tighter transition-all">30s</button>
+                                            <button data-len="60s"
+                                                class="remix-len-btn flex-1 py-2 rounded text-[10px] uppercase font-bold tracking-tighter transition-all glass-active">60s</button>
+                                            <button data-len="90s"
+                                                class="remix-len-btn flex-1 py-2 rounded text-[10px] uppercase font-bold tracking-tighter transition-all">90s</button>
+                                            <button data-len="long"
+                                                class="remix-len-btn flex-1 py-2 rounded text-[10px] uppercase font-bold tracking-tighter transition-all">Long</button>
                                         </div>
                                     </div>
 
                                     <!-- Blend Slider -->
                                     <div>
-                                        <div class="flex justify-between text-[10px] uppercase font-bold text-secondary mb-2">
+                                        <div
+                                            class="flex justify-between text-[10px] uppercase font-bold text-secondary mb-2">
                                             <span>Pure Sources</span>
                                             <span>Heavy Remix</span>
                                         </div>
-                                        <input type="range" id="blend-slider" min="0" max="1" step="0.1" value="0.7" class="w-full accent-primary h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer">
+                                        <input type="range" id="blend-slider" min="0" max="1" step="0.1" value="0.7"
+                                            class="w-full accent-primary h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer">
                                     </div>
 
-                                    <button id="generate-remix-btn" class="w-full py-4 bg-gradient-purple rounded-xl font-bold uppercase tracking-widest hover:scale-[1.01] transition-transform flex items-center justify-center gap-3">
-                                        <svg class="w-5 h-5 animate-pulse-soft" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L9 9H2L7 14L5 21L12 17L19 21L17 14L22 9H15L12 2Z"></path></svg>
+                                    <button id="generate-remix-btn"
+                                        class="w-full py-4 bg-gradient-purple rounded-xl font-bold uppercase tracking-widest hover:scale-[1.01] transition-transform flex items-center justify-center gap-3">
+                                        <svg class="w-5 h-5 animate-pulse-soft" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 2L9 9H2L7 14L5 21L12 17L19 21L17 14L22 9H15L12 2Z"></path>
+                                        </svg>
                                         Generate Script
                                     </button>
                                 </div>
@@ -290,27 +388,41 @@
                             <div class="flex items-center justify-between px-2">
                                 <h3 class="text-lg font-bold">Generated Script</h3>
                                 <div class="flex gap-2">
-                                    <button id="remix-variant-btn" class="text-[10px] font-bold text-primary glass px-3 py-1.5 rounded uppercase">Remix This Variant</button>
-                                    <button id="save-variant-btn" class="text-[10px] font-bold text-cyan-400 glass px-3 py-1.5 rounded uppercase">Save to Library</button>
-                                    <button id="diff-toggle-btn" class="text-[10px] font-bold text-secondary glass px-3 py-1.5 rounded uppercase">Show Diff</button>
+                                    <button id="remix-variant-btn"
+                                        class="text-[10px] font-bold text-primary glass px-3 py-1.5 rounded uppercase">Remix
+                                        This Variant</button>
+                                    <button id="save-variant-btn"
+                                        class="text-[10px] font-bold text-cyan-400 glass px-3 py-1.5 rounded uppercase">Save
+                                        to Library</button>
+                                    <button id="diff-toggle-btn"
+                                        class="text-[10px] font-bold text-secondary glass px-3 py-1.5 rounded uppercase">Show
+                                        Diff</button>
                                 </div>
                             </div>
-                            
+
                             <!-- Side by Side Diff Area -->
-                            <div id="diff-area" class="hidden grid grid-cols-2 gap-px bg-white/5 border border-white/10 rounded-xl overflow-hidden min-h-[400px]">
+                            <div id="diff-area"
+                                class="hidden grid grid-cols-2 gap-px bg-white/5 border border-white/10 rounded-xl overflow-hidden min-h-[400px]">
                                 <div class="bg-dark/40 p-6 flex flex-col">
-                                    <span class="text-[10px] font-black uppercase text-secondary mb-4 tracking-tighter opacity-50">Original Transcript</span>
+                                    <span
+                                        class="text-[10px] font-black uppercase text-secondary mb-4 tracking-tighter opacity-50">Original
+                                        Transcript</span>
                                     <div id="diff-left" class="diff-content text-sm leading-relaxed font-mono"></div>
                                 </div>
                                 <div class="bg-dark/40 p-6 flex flex-col">
-                                    <span class="text-[10px] font-black uppercase text-secondary mb-4 tracking-tighter opacity-50">Remixed Script</span>
+                                    <span
+                                        class="text-[10px] font-black uppercase text-secondary mb-4 tracking-tighter opacity-50">Remixed
+                                        Script</span>
                                     <div id="diff-right" class="diff-content text-sm leading-relaxed font-mono"></div>
                                 </div>
                             </div>
 
                             <div class="glass p-8 space-y-6">
-                                <input id="remix-title" class="bg-transparent text-2xl font-bold border-none outline-none w-full text-gradient" value="The Hook">
-                                <div id="remix-output" class="transcript-area text-lg leading-relaxed outline-none" contenteditable="true">
+                                <input id="remix-title"
+                                    class="bg-transparent text-2xl font-bold border-none outline-none w-full text-gradient"
+                                    value="The Hook">
+                                <div id="remix-output" class="transcript-area text-lg leading-relaxed outline-none"
+                                    contenteditable="true">
                                     Your remixed script will appear here...
                                 </div>
                                 <div id="remix-tags" class="flex flex-wrap gap-2 border-t border-white/5 pt-4"></div>
@@ -323,7 +435,8 @@
         </main>
 
         <!-- Footer -->
-        <footer class="mt-auto pt-16 pb-8 w-full border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-secondary">
+        <footer
+            class="mt-auto pt-16 pb-8 w-full border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-secondary">
             <div class="flex items-center gap-2">
                 <span>Built on Whisper AI</span>
             </div>
@@ -336,102 +449,161 @@
     </div>
 
     <!-- Library Preview Modal -->
-    <div id="lib-preview-modal" class="fixed inset-0 z-[70] hidden bg-dark/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div id="lib-preview-modal"
+        class="fixed inset-0 z-[70] hidden bg-dark/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="glass w-full max-w-3xl max-h-[80vh] flex flex-col rounded-3xl overflow-hidden">
             <div class="p-6 border-b border-white/5 flex items-start justify-between gap-4">
                 <div>
-                    <span id="lib-preview-type" class="text-[9px] font-black uppercase text-secondary block mb-1"></span>
+                    <span id="lib-preview-type"
+                        class="text-[9px] font-black uppercase text-secondary block mb-1"></span>
                     <h3 id="lib-preview-title" class="text-xl font-bold"></h3>
                     <p id="lib-preview-date" class="text-xs text-secondary/60 mt-1"></p>
                 </div>
                 <div class="flex gap-2 shrink-0">
-                    <button id="lib-preview-remix-btn" class="px-4 py-2 bg-gradient-purple text-white text-xs font-bold rounded-xl uppercase tracking-wider">Import to Remix</button>
+                    <button id="lib-preview-remix-btn"
+                        class="px-4 py-2 bg-gradient-purple text-white text-xs font-bold rounded-xl uppercase tracking-wider">Import
+                        to Remix</button>
                     <button id="lib-preview-close-btn" class="p-2 glass glass-hover rounded-full">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
                     </button>
                 </div>
             </div>
-            <div id="lib-preview-text" class="flex-1 overflow-y-auto p-8 text-sm leading-relaxed font-mono whitespace-pre-wrap text-secondary"></div>
+            <div id="lib-preview-text"
+                class="flex-1 overflow-y-auto p-8 text-sm leading-relaxed font-mono whitespace-pre-wrap text-secondary">
+            </div>
         </div>
     </div>
 
     <!-- Library Modal -->
-    <div id="library-modal" class="fixed inset-0 z-50 hidden bg-dark/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div id="library-modal"
+        class="fixed inset-0 z-50 hidden bg-dark/80 backdrop-blur-md flex items-center justify-center p-4">
         <div class="glass w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden rounded-3xl">
             <div class="p-6 border-b border-white/5 flex items-center justify-between">
                 <div class="flex items-center gap-4">
                     <h2 class="text-xl font-bold">Your Library</h2>
                     <div class="flex glass p-0.5 rounded-lg">
-                        <button id="lib-view-grid" class="p-1.5 rounded-md glass-active"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg></button>
-                        <button id="lib-view-list" class="p-1.5 rounded-md text-secondary"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+                        <button id="lib-view-grid" class="p-1.5 rounded-md glass-active"><svg class="w-4 h-4"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                                </path>
+                            </svg></button>
+                        <button id="lib-view-list" class="p-1.5 rounded-md text-secondary"><svg class="w-4 h-4"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 6h16M4 12h16M4 18h16"></path>
+                            </svg></button>
                     </div>
                 </div>
                 <div class="flex items-center gap-2 flex-wrap justify-end">
                     <!-- PRD §3.7 Library Bulk Actions -->
-                    <button id="lib-import-folder-btn" class="px-3 py-1.5 glass glass-hover text-[10px] font-bold uppercase rounded flex items-center gap-1">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                    <button id="lib-import-folder-btn"
+                        class="px-3 py-1.5 glass glass-hover text-[10px] font-bold uppercase rounded flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                        </svg>
                         Folder
                     </button>
-                    <button id="lib-upload-btn" class="px-3 py-1.5 glass glass-hover text-[10px] font-bold uppercase rounded flex items-center gap-1">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    <button id="lib-upload-btn"
+                        class="px-3 py-1.5 glass glass-hover text-[10px] font-bold uppercase rounded flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                        </svg>
                         Files
                     </button>
-                    <input type="file" id="lib-upload-input" class="hidden" multiple accept=".txt,.json,text/plain,application/json">
-                    
-                    <button id="lib-export-zip-btn" class="px-3 py-1.5 glass glass-hover text-[10px] font-bold uppercase rounded flex items-center gap-1 text-cyan-400 border-cyan-400/20">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    <input type="file" id="lib-upload-input" class="hidden" multiple
+                        accept=".txt,.json,text/plain,application/json">
+
+                    <button id="lib-export-zip-btn"
+                        class="px-3 py-1.5 glass glass-hover text-[10px] font-bold uppercase rounded flex items-center gap-1 text-cyan-400 border-cyan-400/20">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                        </svg>
                         Export ZIP
                     </button>
-                    
-                    <button id="gdrive-backup-btn" class="px-3 py-1.5 glass glass-hover text-[10px] font-bold uppercase rounded flex items-center gap-1 text-primary border-primary/20">
-                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"></path></svg>
+
+                    <button id="gdrive-backup-btn"
+                        class="px-3 py-1.5 glass glass-hover text-[10px] font-bold uppercase rounded flex items-center gap-1 text-primary border-primary/20">
+                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M19 13H5v-2h14v2z"></path>
+                        </svg>
                         Drive Backup
                     </button>
                     <button id="close-library-btn" class="p-1.5 ml-2 glass glass-hover rounded-full">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
                     </button>
                 </div>
             </div>
-            
+
             <div class="flex-1 overflow-y-auto p-8" id="library-content">
                 <!-- Library items here -->
             </div>
 
             <div class="p-6 border-t border-white/5 bg-dark/20 flex items-center justify-between">
                 <div class="flex gap-2">
-                    <select id="lib-filter-type" class="glass px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-primary/50 appearance-none bg-dark/50 cursor-pointer w-28">
+                    <select id="lib-filter-type"
+                        class="glass px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-primary/50 appearance-none bg-dark/50 cursor-pointer w-28">
                         <option value="all">All Types</option>
                         <option value="original">Original</option>
                         <option value="imported">Imported</option>
                         <option value="remix">Remix</option>
                     </select>
-                    <input type="text" id="lib-search" placeholder="Search transcripts..." class="glass px-4 py-2 text-xs w-48 outline-none focus:ring-1 focus:ring-primary/50">
-                    <button id="lib-bulk-import" class="px-4 py-2 bg-primary text-white text-[10px] font-bold rounded uppercase tracking-widest hidden">Import to Remix (<span id="lib-selected-count">0</span>)</button>
+                    <input type="text" id="lib-search" placeholder="Search transcripts..."
+                        class="glass px-4 py-2 text-xs w-48 outline-none focus:ring-1 focus:ring-primary/50">
+                    <button id="lib-bulk-import"
+                        class="px-4 py-2 bg-primary text-white text-[10px] font-bold rounded uppercase tracking-widest hidden">Import
+                        to Remix (<span id="lib-selected-count">0</span>)</button>
                 </div>
-                <button id="lib-clear-all" class="text-[10px] text-red-400 font-bold uppercase tracking-widest hover:underline ml-4">Clear All Data</button>
+                <button id="lib-clear-all"
+                    class="text-[10px] text-red-400 font-bold uppercase tracking-widest hover:underline ml-4">Clear All
+                    Data</button>
             </div>
         </div>
     </div>
 
     <!-- My Voice Modal -->
-    <div id="voice-modal" class="fixed inset-0 z-[60] hidden bg-dark/90 backdrop-blur-xl flex items-center justify-center p-4">
+    <div id="voice-modal"
+        class="fixed inset-0 z-[60] hidden bg-dark/90 backdrop-blur-xl flex items-center justify-center p-4">
         <div class="glass w-full max-w-lg p-10 rounded-3xl space-y-6 text-center relative">
             <button id="close-voice-btn" class="absolute top-6 right-6 p-2 glass glass-hover rounded-full">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
             </button>
             <div class="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                <svg class="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z">
+                    </path>
+                </svg>
             </div>
             <h2 class="text-2xl font-bold tracking-tight">Your Creative Voice</h2>
-            <p class="text-secondary text-sm">Describe your content style in 1-3 sentences. We'll use this to make your remixes sound just like you.</p>
-            <textarea id="voice-input" class="w-full h-32 glass p-5 text-sm resize-none outline-none focus:ring-2 focus:ring-primary/40 leading-relaxed" placeholder="e.g. Minecraft venting style, short sentences, curse words OK, brutal honesty, strong hooks..."></textarea>
-            <button id="save-voice-btn" class="w-full py-4 bg-gradient-purple rounded-2xl font-bold uppercase tracking-widest">Set My Profile</button>
+            <p class="text-secondary text-sm">Describe your content style in 1-3 sentences. We'll use this to make your
+                remixes sound just like you.</p>
+            <textarea id="voice-input"
+                class="w-full h-32 glass p-5 text-sm resize-none outline-none focus:ring-2 focus:ring-primary/40 leading-relaxed"
+                placeholder="e.g. Minecraft venting style, short sentences, curse words OK, brutal honesty, strong hooks..."></textarea>
+            <button id="save-voice-btn"
+                class="w-full py-4 bg-gradient-purple rounded-2xl font-bold uppercase tracking-widest">Set My
+                Profile</button>
         </div>
     </div>
 
     <!-- Toast Notifications -->
-    <div id="toast-container" class="fixed bottom-6 right-6 flex flex-col gap-2 pointer-events-none toast-container"></div>
+    <div id="toast-container" class="fixed bottom-6 right-6 flex flex-col gap-2 pointer-events-none toast-container">
+    </div>
 
     <script src="script.js"></script>
 </body>
+
 </html>

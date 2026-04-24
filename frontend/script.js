@@ -413,7 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         diff.forEach((part) => {
             const colorClass = part.added ? 'diff-added' : part.removed ? 'diff-removed' : '';
-            const line = part.value;
+            const line = escapeHtml(part.value);
             
             if (part.added) {
                 rightHtml += `<div class="${colorClass}">${line}</div>`;
@@ -466,22 +466,22 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="${layoutClass}">
                 ${filtered.length === 0 ? '<p class="text-secondary text-sm col-span-full text-center py-8">No items match your filter.</p>' : ''}
                 ${filtered.map(item => `
-                    <div class="library-item glass p-5 space-y-3 flex flex-col cursor-pointer group relative" data-id="${item.id}" onclick="openLibraryPreview('${item.id}')">
+                    <div class="library-item glass p-5 space-y-3 flex flex-col cursor-pointer group relative" data-id="${escapeHtml(item.id)}" onclick="openLibraryPreview('${escapeHtml(item.id)}')">
                         <div class="absolute top-4 right-4 z-10" onclick="event.stopPropagation()">
                             <input type="checkbox" class="lib-checkbox rounded border-white/10 bg-dark/50 text-primary focus:ring-primary/40 cursor-pointer w-4 h-4" 
-                                onchange="toggleLibrarySelection('${item.id}', this.checked)"
+                                onchange="toggleLibrarySelection('${escapeHtml(item.id)}', this.checked)"
                                 ${state.libSelectedItems.has(item.id) ? 'checked' : ''}>
                         </div>
                         <div class="flex justify-between items-start pr-8">
-                            <span class="text-[9px] font-black uppercase ${item.type === 'remix' ? 'text-cyan-400' : 'text-secondary'}">${item.type || 'transcript'}</span>
+                            <span class="text-[9px] font-black uppercase ${item.type === 'remix' ? 'text-cyan-400' : 'text-secondary'}">${escapeHtml(item.type || 'transcript')}</span>
                             <span class="text-[9px] text-white/30">${new Date(item.date).toLocaleDateString()}</span>
                         </div>
                         <h4 class="font-bold text-sm line-clamp-2 pr-2">${escapeHtml(item.title)}</h4>
                         <p class="text-xs text-secondary line-clamp-3">${escapeHtml(item.transcript)}</p>
                         ${item.tags && item.tags.length ? `<div class="flex flex-wrap gap-1">${item.tags.map(t => `<span class="library-tag">#${escapeHtml(t)}</span>`).join('')}</div>` : ''}
                         <div class="mt-auto pt-4 flex justify-between items-center">
-                            <button onclick="event.stopPropagation(); importToRemix('${item.id}')" class="text-[10px] font-bold text-primary hover:underline">REMIX THIS</button>
-                            <button onclick="event.stopPropagation(); deleteItem('${item.id}')" class="text-red-400 opacity-0 group-hover:opacity-100 italic text-[10px] transition-opacity">Delete</button>
+                            <button onclick="event.stopPropagation(); importToRemix('${escapeHtml(item.id)}')" class="text-[10px] font-bold text-primary hover:underline">REMIX THIS</button>
+                            <button onclick="event.stopPropagation(); deleteItem('${escapeHtml(item.id)}')" class="text-red-400 opacity-0 group-hover:opacity-100 italic text-[10px] transition-opacity">Delete</button>
                         </div>
                     </div>
                 `).join('')}
