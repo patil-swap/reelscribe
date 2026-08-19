@@ -20,10 +20,16 @@ document.addEventListener('DOMContentLoaded', () => {
         libSelectedItems: new Set(), // For multi-select and bulk actions
         libFilterType: 'all', // all, original, imported, remix
         selectedSources: [], // IDs for remixing
-        backendUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-            ? 'http://localhost:8000' 
+        backendUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:8000'
             : '',
-        
+
+        // User Auth
+        token: localStorage.getItem('reelscribe_token') || null,
+        userEmail: localStorage.getItem('reelscribe_user_email') || null,
+        authMode: 'login', // 'login' | 'signup'
+        deviceFingerprint: '',
+
         // Google OAuth
         gToken: null,
         GOOGLE_CLIENT_ID: null // Will be fetched from /config
@@ -38,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fileInput: document.getElementById('file-input'),
         modelSelect: document.getElementById('model-select'),
         timestampToggle: document.getElementById('timestamp-toggle'),
-        
+
         // Progress & Info
         progressCard: document.getElementById('progress-card'),
         progressPercent: document.getElementById('progress-percent'),
@@ -48,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
         videoTitle: document.getElementById('video-title'),
         videoChannel: document.getElementById('video-channel'),
         cancelBtn: document.getElementById('cancel-btn'),
-        
+
         // Result & Tabs
         resultSection: document.getElementById('result-section'),
         tabTranscript: document.getElementById('tab-transcript'),
@@ -57,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
         viewRemix: document.getElementById('view-remix'),
         transcriptContainer: document.getElementById('transcript-container'),
         resetBtn: document.getElementById('reset-btn'),
-        
+
         // Remix UI
         remixSourceList: document.getElementById('remix-source-list'),
         remixPrompt: document.getElementById('remix-prompt'),
@@ -86,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
         libViewGrid: document.getElementById('lib-view-grid'),
         libViewList: document.getElementById('lib-view-list'),
         gDriveBtn: document.getElementById('gdrive-backup-btn'),
-        
+
         voiceModal: document.getElementById('voice-modal'),
         voiceInput: document.getElementById('voice-input'),
         saveVoiceBtn: document.getElementById('save-voice-btn'),
@@ -115,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         libPreviewText: document.getElementById('lib-preview-text'),
         libPreviewRemixBtn: document.getElementById('lib-preview-remix-btn'),
         libPreviewCloseBtn: document.getElementById('lib-preview-close-btn'),
-        
+
         // Advanced & Bulk
         englishToggle: document.getElementById('english-toggle'),
         remixBackBtn: document.getElementById('remix-back-btn'),
@@ -127,6 +133,25 @@ document.addEventListener('DOMContentLoaded', () => {
         libExportZipBtn: document.getElementById('lib-export-zip-btn'),
         libFilterType: document.getElementById('lib-filter-type'),
         libSelectedCount: document.getElementById('lib-selected-count'),
+
+        // User Auth UI Elements
+        limitBadge: document.getElementById('limit-badge'),
+        limitCount: document.getElementById('limit-count'),
+        authBtn: document.getElementById('auth-btn'),
+        authBtnLabel: document.getElementById('auth-btn-label'),
+        limitBanner: document.getElementById('limit-banner'),
+        limitBannerText: document.getElementById('limit-banner-text'),
+        limitSignupBtn: document.getElementById('limit-signup-btn'),
+        authModal: document.getElementById('auth-modal'),
+        closeAuthBtn: document.getElementById('close-auth-btn'),
+        authForm: document.getElementById('auth-form'),
+        authEmail: document.getElementById('auth-email'),
+        authPassword: document.getElementById('auth-password'),
+        authModalTitle: document.getElementById('auth-modal-title'),
+        authModalSubtitle: document.getElementById('auth-modal-subtitle'),
+        authSubmitBtn: document.getElementById('auth-submit-btn'),
+        authSwitchBtn: document.getElementById('auth-switch-btn'),
+        authSwitchText: document.getElementById('auth-switch-text'),
     };
 
     // --- DB Setup (IndexedDB) ---
@@ -180,6 +205,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Core Initialization ---
     const init = async () => {
+        // Generate device fingerprint for smart rate-limiting
+        state.deviceFingerprint = getDeviceFingerprint();
+
         await initDB();
         await fetchConfig(); // Get environment-based config
         initTheme();
@@ -187,7 +215,11 @@ document.addEventListener('DOMContentLoaded', () => {
         loadLibrary();
         setupEventListeners();
         setupKeyboardShortcuts();
-        
+
+        // Bootstrap auth & limit state
+        updateAuthUI();
+        await updateLimitUI();
+
         // Auto-load last transcript if exists
         const savedId = localStorage.getItem('lastTranscriptId');
         if (savedId) {
@@ -215,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.tabRemix.classList.add('glass-active');
             elements.tabTranscript.classList.remove('glass-active');
             elements.tabTranscript.classList.add('text-secondary');
-            
+
             // Check for Voice Profile
             if (!state.userVoice && !state._voiceDismissed) {
                 // If skipped before, don't nag too hard, but show once per session or manually
@@ -242,11 +274,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         state.isLoading = true;
         state.abortController = new AbortController();
-        
+
         updateProgress(0, 'Initializing...');
         elements.progressCard.classList.remove('hidden');
         elements.resultSection.classList.add('hidden');
-        
+
+        let timer = null; // <-- DECLARED HERE, ALWAYS AVAILABLE
+
         const formData = new FormData();
         formData.append('model', elements.modelSelect.value);
         formData.append('timestamps', elements.timestampToggle.checked);
@@ -257,7 +291,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             if (url) {
                 updateProgress(10, 'Fetching video info...');
-                const infoRes = await fetch(`${state.backendUrl}/video-info?url=${encodeURIComponent(url)}`, { signal: state.abortController.signal });
+                const infoRes = await fetch(
+                    `${state.backendUrl}/video-info?url=${encodeURIComponent(url)}`,
+                    { signal: state.abortController.signal, headers: getAuthHeaders() }
+                );
                 if (!infoRes.ok) throw await infoRes.json();
                 const info = await infoRes.json();
                 state.currentTitle = info.title;
@@ -266,26 +303,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 // §3.4 Length warnings
                 const durationSec = info.duration || 0;
                 if (durationSec > 4 * 3600) {
-                    const proceed = confirm(`⚠️ This video is over 4 hours long (${Math.round(durationSec/3600)}h). Transcription will be very slow and may time out. Proceed anyway?`);
+                    const proceed = confirm(`⚠️ This video is over 4 hours long (${Math.round(durationSec / 3600)}h). Transcription will be very slow and may time out. Proceed anyway?`);
                     if (!proceed) {
                         state.isLoading = false;
                         elements.progressCard.classList.add('hidden');
                         return;
                     }
                 } else if (durationSec > 2 * 3600) {
-                    showToast(`⚠️ Long video (${Math.round(durationSec/60)} min). Transcription may take a while.`, 'info');
+                    showToast(`⚠️ Long video (${Math.round(durationSec / 60)} min). Transcription may take a while.`, 'info');
                 }
 
                 formData.append('url', url);
             } else {
                 state.currentTitle = file.name.replace(/\.[^/.]+$/, "");
-                showVideoInfo({ title: file.name, channel: `${(file.size/1024/1024).toFixed(1)} MB`, thumbnail_url: '' });
+                showVideoInfo({ title: file.name, channel: `${(file.size / 1024 / 1024).toFixed(1)} MB`, thumbnail_url: '' });
                 formData.append('file', file);
             }
 
             // Fake progress
             let fakeProgress = 20;
-            let timer;
             timer = setInterval(() => {
                 if (fakeProgress < 95) {
                     fakeProgress += Math.random() * 2;
@@ -293,16 +329,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }, 2000);
 
-            const res = await fetch(`${state.backendUrl}/transcribe`, { 
-                method: 'POST', 
-                body: formData, 
-                signal: state.abortController.signal 
+            const res = await fetch(`${state.backendUrl}/transcribe`, {
+                method: 'POST',
+                body: formData,
+                headers: getAuthHeaders(),
+                signal: state.abortController.signal
             });
             clearInterval(timer);
-            
+
             if (!res.ok) throw await res.json();
             const result = await res.json();
-            
+
             state.lastTranscript = {
                 ...result,
                 id: uuid(),
@@ -310,21 +347,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 date: new Date().toISOString(),
                 type: 'original'
             };
-            
+
             await saveToDB(state.lastTranscript);
             showResult(state.lastTranscript);
             showToast('Transcription complete!', 'success');
             loadLibrary(); // refresh library
-            
+            updateLimitUI(); // refresh usage counter
+
         } catch (err) {
-            clearInterval(timer);
+            if (timer) clearInterval(timer); // <-- SAFE CLEAR
             if (err.name !== 'AbortError') handleError(err);
         } finally {
             state.isLoading = false;
             elements.progressCard.classList.add('hidden');
         }
     }
-
     // --- Remix Studio Logic ---
     async function generateRemix() {
         if (state.selectedSources.length === 0) {
@@ -334,7 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const activeEmotion = document.querySelector('.emotion-pill.active')?.dataset.emotion || 'raw';
         const length = document.querySelector('.remix-len-btn.glass-active')?.dataset.len || '60s';
-        
+
         // Advanced settings
         const platform = elements.remixPlatform.value !== 'none' ? `Platform: ${elements.remixPlatform.value}` : '';
         const hookStr = elements.hookSlider.value;
@@ -342,7 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const tsCues = elements.remixTimestampToggle.checked ? 'Include timestamp cues [00:00] for cuts.' : '';
 
         const userPrompt = `emotion: ${activeEmotion} | ${platform} | ${hookDesc} | ${tsCues} | draft: ${elements.remixPrompt.value}`;
-        
+
         state.isLoading = true;
         elements.generateRemixBtn.disabled = true;
         showToast('Generating script...', 'info');
@@ -381,7 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw errData;
             }
             const data = await res.json();
-            
+
             displayRemixResult(data);
             showToast('Script remixed!', 'success');
         } catch (err) {
@@ -396,10 +433,10 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.remixResult.classList.remove('hidden');
         elements.remixTitle.value = data.title;
         elements.remixOutput.innerText = data.script;
-        
+
         // Tags
         elements.remixTags.innerHTML = (data.tags || []).map(t => `<span class="library-tag">#${escapeHtml(t)}</span>`).join('');
-        
+
         // Setup Diff
         const originalText = state.selectedSources.map(s => s.transcript).join('\n\n');
         renderDiff(originalText, data.script);
@@ -414,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
         diff.forEach((part) => {
             const colorClass = part.added ? 'diff-added' : part.removed ? 'diff-removed' : '';
             const line = escapeHtml(part.value);
-            
+
             if (part.added) {
                 rightHtml += `<div class="${colorClass}">${line}</div>`;
             } else if (part.removed) {
@@ -458,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const matchesQuery = item.title.toLowerCase().includes(query) || item.transcript.toLowerCase().includes(query);
             const matchesType = filterType === 'all' || (item.type || 'transcript') === filterType;
             return matchesQuery && matchesType;
-        }).sort((a,b) => new Date(b.date) - new Date(a.date));
+        }).sort((a, b) => new Date(b.date) - new Date(a.date));
 
         const layoutClass = state.libraryView === 'list' ? 'flex flex-col gap-4' : 'library-grid';
 
@@ -591,7 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.remixResult.classList.add('hidden');
             generateRemix();
         };
-        
+
         elements.saveVariantBtn.onclick = () => {
             const variant = {
                 id: uuid(),
@@ -627,7 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         elements.libClearAll.onclick = () => {
-            if(confirm('Clear ALL data? This cannot be undone.')) {
+            if (confirm('Clear ALL data? This cannot be undone.')) {
                 indexedDB.deleteDatabase(DB_NAME);
                 location.reload();
             }
@@ -641,7 +678,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Advanced & Bulk features listeners
         elements.remixBackBtn.onclick = () => switchView('transcript');
-        
+
         elements.hookSlider.oninput = () => {
             const val = elements.hookSlider.value;
             elements.hookStrengthLabel.innerText = val === '1' ? 'Subtle' : val === '3' ? 'Viral' : 'Normal';
@@ -651,7 +688,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.libFilterType = elements.libFilterType.value;
             renderLibrary();
         };
-        
+
         elements.libBulkImport.onclick = () => {
             const ids = Array.from(state.libSelectedItems);
             ids.forEach(id => {
@@ -721,6 +758,33 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         elements.fileInput.onchange = handleFileSelect;
+
+        // Auth Modal & Limit Banner
+        elements.authBtn.onclick = () => {
+            if (state.token) {
+                handleSignOut();
+            } else {
+                switchAuthMode('login');
+                elements.authModal.classList.remove('hidden');
+            }
+        };
+        elements.closeAuthBtn.onclick = () => elements.authModal.classList.add('hidden');
+        elements.authForm.onsubmit = handleAuthSubmit;
+        elements.authSwitchBtn.onclick = () => {
+            switchAuthMode(state.authMode === 'login' ? 'signup' : 'login');
+        };
+        elements.limitSignupBtn.onclick = () => {
+            switchAuthMode('signup');
+            elements.authModal.classList.remove('hidden');
+        };
+        // Close auth modal on backdrop click
+        elements.authModal.addEventListener('click', (e) => {
+            if (e.target === elements.authModal) elements.authModal.classList.add('hidden');
+        });
+        // Close auth modal with Escape key (extend existing handler)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') elements.authModal.classList.add('hidden');
+        });
     }
 
 
@@ -734,7 +798,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const text = await file.text();
                 const data = JSON.parse(text);
-                
+
                 // Basic validation: must have transcript
                 if (!data.transcript) throw new Error('Invalid JSON format');
 
@@ -749,12 +813,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 await saveToDB(item);
                 await loadLibrary();
                 showToast(`Imported: ${item.title}`, 'success');
-                
+
                 // Show in result area if it's a single import
                 state.lastTranscript = item;
                 state.currentTitle = item.title;
                 showResult(item);
-                
+
                 elements.fileInput.value = ''; // Reset
                 return;
             } catch (err) {
@@ -775,11 +839,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 await saveToDB(item);
                 await loadLibrary();
                 showToast(`Imported: ${item.title}`, 'success');
-                
+
                 state.lastTranscript = item;
                 state.currentTitle = item.title;
                 showResult(item);
-                
+
                 elements.fileInput.value = ''; // Reset
                 return;
             } catch (err) {
@@ -805,7 +869,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleLibraryBulkUpload(event) {
         const files = Array.from(event.target.files || elements.libUploadInput.files);
         if (files.length === 0) return;
-        
+
         showToast(`Importing ${files.length} files...`, 'info');
         let importedCount = 0;
 
@@ -851,20 +915,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleZipExport() {
         if (state.libSelectedItems.size === 0) return;
-        
+
         try {
             showToast('Generating ZIP...', 'info');
             const zip = new JSZip();
-            
+
             for (const id of state.libSelectedItems) {
                 const item = state.library.find(i => i.id === id);
                 if (item) {
                     const safeTitle = (item.title || 'transcript').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                    const fileName = `${safeTitle}_${item.id.substring(0,6)}.txt`;
+                    const fileName = `${safeTitle}_${item.id.substring(0, 6)}.txt`;
                     zip.file(fileName, item.transcript);
                 }
             }
-            
+
             const content = await zip.generateAsync({ type: 'blob' });
             const url = URL.createObjectURL(content);
             const a = document.createElement('a');
@@ -874,7 +938,7 @@ document.addEventListener('DOMContentLoaded', () => {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            
+
             showToast('ZIP Export downloaded!', 'success');
         } catch (err) {
             console.error(err);
@@ -898,7 +962,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (entry.kind === 'file') {
                         const file = await entry.getFile();
                         const fileNameLower = file.name.toLowerCase();
-                        
+
                         if (fileNameLower.endsWith('.txt')) {
                             const text = await file.text();
                             await saveToDB({
@@ -946,7 +1010,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleError(err) {
         console.error("Application Error:", err);
         let msg = 'An error occurred. Please try again.';
-        
+
         if (err instanceof SyntaxError) {
             msg = 'Server returned an invalid response (possibly an error page).';
         } else if (err && err.detail) {
@@ -956,7 +1020,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (typeof err === 'string') {
             msg = err;
         }
-        
+
         showToast(msg, 'error');
     }
 
@@ -1090,6 +1154,158 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    // --- User Authentication & Limits Logic ---
+    function getDeviceFingerprint() {
+        const screenInfo = `${screen.width}x${screen.height}x${screen.colorDepth}`;
+        const userAgent = navigator.userAgent;
+        const language = navigator.language || navigator.userLanguage;
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        let plugins = "";
+        if (navigator.plugins) {
+            plugins = Array.from(navigator.plugins).map(p => p.name).join(',');
+        }
+        const raw = `${screenInfo}|${userAgent}|${language}|${timezone}|${plugins}`;
+        let hash = 0;
+        for (let i = 0; i < raw.length; i++) {
+            const char = raw.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash |= 0;
+        }
+        return Math.abs(hash).toString(16);
+    }
+
+    function getAuthHeaders() {
+        const headers = {
+            'X-Device-Fingerprint': state.deviceFingerprint
+        };
+        if (state.token) {
+            headers['Authorization'] = `Bearer ${state.token}`;
+        }
+        return headers;
+    }
+
+    async function updateLimitUI() {
+        try {
+            const res = await fetch(`${state.backendUrl}/transcribe/limit`, {
+                headers: getAuthHeaders()
+            });
+            if (!res.ok) throw new Error("Failed to fetch limits");
+            const data = await res.json();
+
+            // Update UI elements
+            if (elements.limitCount) {
+                elements.limitCount.innerText = `${data.usage}/${data.limit}`;
+            }
+            if (elements.limitBadge) {
+                elements.limitBadge.classList.remove('hidden');
+            }
+
+            if (elements.limitBannerText) {
+                if (data.is_authenticated) {
+                    elements.limitBannerText.innerText = `Premium limit active: ${data.usage}/${data.limit} transcriptions used in the last 24h.`;
+                    if (elements.limitSignupBtn) elements.limitSignupBtn.classList.add('hidden');
+                } else {
+                    elements.limitBannerText.innerText = `Remaining transcriptions: ${data.remaining}/${data.limit} today. Sign up/in to get +5 extra daily limit!`;
+                    if (elements.limitSignupBtn) elements.limitSignupBtn.classList.remove('hidden');
+                }
+            }
+        } catch (err) {
+            console.error("Error updating limit UI:", err);
+        }
+    }
+
+    function updateAuthUI() {
+        if (state.token) {
+            if (elements.authBtnLabel) {
+                elements.authBtnLabel.innerText = "Sign Out";
+            }
+            if (elements.authBtn) {
+                elements.authBtn.classList.remove('text-primary');
+                elements.authBtn.classList.add('text-red-400');
+            }
+        } else {
+            if (elements.authBtnLabel) {
+                elements.authBtnLabel.innerText = "Sign In";
+            }
+            if (elements.authBtn) {
+                elements.authBtn.classList.remove('text-red-400');
+                elements.authBtn.classList.add('text-primary');
+            }
+        }
+    }
+
+    function switchAuthMode(mode) {
+        state.authMode = mode;
+        if (mode === 'signup') {
+            elements.authModalTitle.innerText = "Create Your Account";
+            elements.authModalSubtitle.innerText = "Unlock a higher transcription limit (+5/day). Only valid emails allowed.";
+            elements.authSubmitBtn.innerText = "Sign Up";
+            elements.authSwitchText.innerText = "Already have an account?";
+            elements.authSwitchBtn.innerText = "Sign In";
+        } else {
+            elements.authModalTitle.innerText = "Access Your Account";
+            elements.authModalSubtitle.innerText = "Sign in to unlock +5 extra transcriptions.";
+            elements.authSubmitBtn.innerText = "Sign In";
+            elements.authSwitchText.innerText = "Don't have an account?";
+            elements.authSwitchBtn.innerText = "Sign Up";
+        }
+    }
+
+    async function handleAuthSubmit(e) {
+        e.preventDefault();
+        const email = elements.authEmail.value.trim();
+        const password = elements.authPassword.value;
+        if (!email || !password) return;
+
+        elements.authSubmitBtn.disabled = true;
+        const origText = elements.authSubmitBtn.innerText;
+        elements.authSubmitBtn.innerText = "Processing...";
+
+        try {
+            const endpoint = state.authMode === 'signup' ? '/auth/signup' : '/auth/login';
+            const res = await fetch(`${state.backendUrl}${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.detail || "Authentication failed.");
+            }
+
+            // Success
+            state.token = data.token;
+            state.userEmail = data.email;
+            localStorage.setItem('reelscribe_token', data.token);
+            localStorage.setItem('reelscribe_user_email', data.email);
+
+            elements.authModal.classList.add('hidden');
+            elements.authPassword.value = '';
+
+            updateAuthUI();
+            await updateLimitUI();
+            showToast(`Successfully ${state.authMode === 'signup' ? 'registered' : 'logged in'}!`, 'success');
+        } catch (err) {
+            handleError(err);
+        } finally {
+            elements.authSubmitBtn.disabled = false;
+            elements.authSubmitBtn.innerText = origText;
+        }
+    }
+
+    function handleSignOut() {
+        if (confirm("Are you sure you want to sign out?")) {
+            state.token = null;
+            state.userEmail = null;
+            localStorage.removeItem('reelscribe_token');
+            localStorage.removeItem('reelscribe_user_email');
+            updateAuthUI();
+            updateLimitUI();
+            showToast("Signed out successfully.", "info");
+        }
+    }
+
     function sanitizeFilename(filename) {
         return filename.replace(/[^a-z0-9]/gi, '_').toLowerCase().substring(0, 50);
     }
@@ -1151,14 +1367,14 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: { Authorization: `Bearer ${state.gToken}` }
         });
         const data = await res.json();
-        
+
         if (data.files && data.files.length > 0) {
             return data.files[0].id;
         }
 
         const createRes = await fetch(`https://www.googleapis.com/drive/v3/files`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 Authorization: `Bearer ${state.gToken}`,
                 'Content-Type': 'application/json'
             },
@@ -1231,7 +1447,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const hStart = Math.floor(fullSecsStart / 3600);
             const mStart = Math.floor((fullSecsStart % 3600) / 60);
             const sStart = fullSecsStart % 60;
-            
+
             const msEnd = Math.floor((s.end % 1) * 1000);
             const fullSecsEnd = Math.floor(s.end);
             const hEnd = Math.floor(fullSecsEnd / 3600);
@@ -1240,7 +1456,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const start = `${hStart.toString().padStart(2, '0')}:${mStart.toString().padStart(2, '0')}:${sStart.toString().padStart(2, '0')},${msStart.toString().padStart(3, '0')}`;
             const end = `${hEnd.toString().padStart(2, '0')}:${mEnd.toString().padStart(2, '0')}:${sEnd.toString().padStart(2, '0')},${msEnd.toString().padStart(3, '0')}`;
-            
+
             return `${i + 1}\n${start} --> ${end}\n${s.text.trim()}\n`;
         }).join('\n');
     }
@@ -1250,7 +1466,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let md = `# ${state.currentTitle}\n\n`;
         if (data.model_used) md += `**Model:** ${data.model_used}\n`;
         md += `**Duration:** ${formatTime(data.duration || 0)}\n\n---\n\n`;
-        
+
         if (data.segments) {
             md += data.segments.map(s => `> **[${formatTime(s.start)}]** ${s.text.trim()}`).join('\n\n');
         } else {

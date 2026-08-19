@@ -1,9 +1,12 @@
 import os
 import shutil
 import uuid
+import hashlib
+import glob
+import time
+import tempfile
 from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -13,11 +16,18 @@ from typing import Optional, List
 from pydantic import BaseModel, field_validator
 from fastapi.responses import JSONResponse, FileResponse
 
+# Define frontend_path early to prevent NameError in error handlers
+frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
+
 try:
     import services
+    import database
+    import auth_utils
 except ImportError as e:
-    if 'services' in str(e):
+    if 'services' in str(e) or 'database' in str(e) or 'auth_utils' in str(e):
         from . import services
+        from . import database
+        from . import auth_utils
     else:
         raise e
 
@@ -36,8 +46,32 @@ def get_real_ip(request: Request) -> str:
     from slowapi.util import get_remote_address
     return get_remote_address(request)
 
+def get_client_identifier(request: Request) -> tuple[str, bool]:
+    """
+    Returns (identifier, is_authenticated).
+    identifier is either the email (if authenticated) or a device_id hash of IP + fingerprint.
+    """
+    # 1. Check Auth Header
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        payload = auth_utils.verify_token(token)
+        if payload and payload.get("email"):
+            email = payload.get("email")
+            # Verify user exists
+            if database.get_user_by_email(email):
+                return email, True
+
+    # 2. Anonymous / Incognito tracking: IP + Fingerprint
+    fingerprint = request.headers.get("X-Device-Fingerprint", "unknown")
+    client_ip = get_real_ip(request)
+    
+    # Combine client_ip + fingerprint to make it unique and persistent in incognito
+    raw_id = f"{client_ip}:{fingerprint}"
+    identifier = hashlib.sha256(raw_id.encode("utf-8")).hexdigest()
+    return identifier, False
+
 limiter = Limiter(key_func=get_real_ip)
-frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
 app = FastAPI(title="ReelScribe API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -54,6 +88,10 @@ async def custom_500_handler(request: Request, __):
 @app.exception_handler(RateLimitExceeded)
 async def custom_rate_limit_handler(request: Request, __):
     return FileResponse(os.path.join(frontend_path, "errors", "429.html"), status_code=429)
+
+class AuthRequest(BaseModel):
+    email: str
+    password: str
 
 class ScriptRequest(BaseModel):
     sources: List[str]
@@ -72,14 +110,11 @@ class ScriptRequest(BaseModel):
         return v
 
 # CORS Configuration
-allowed_origin = os.getenv("ALLOWED_ORIGIN")
-if not allowed_origin:
-    raise RuntimeError("ALLOWED_ORIGIN must be set. Use '*' explicitly for local dev.")
-
+allowed_origin = os.getenv("ALLOWED_ORIGIN", "*")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[allowed_origin] if allowed_origin != "*" else ["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -104,8 +139,74 @@ SUPPORTED_FORMATS = ["audio/mpeg", "audio/wav", "audio/mp4", "audio/x-m4a", "vid
 async def health_check():
     return {"status": "ok"}
 
+@app.post("/auth/signup")
+async def signup(body: AuthRequest):
+    email = body.email.strip().lower()
+    if not auth_utils.is_valid_email_provider(email):
+        raise HTTPException(status_code=400, detail="Invalid email provider. Disposable or temporary emails are not allowed.")
+    
+    if len(body.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters long.")
+    
+    # Check if user already exists
+    existing_user = database.get_user_by_email(email)
+    if existing_user:
+        raise HTTPException(status_code=400, detail="An account with this email already exists.")
+    
+    # Create user
+    pw_hash = database.hash_password(body.password)
+    success = database.create_user(email, pw_hash)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to create user. Please try again.")
+        
+    # Generate token
+    token = auth_utils.create_token({"email": email})
+    return {"token": token, "email": email}
+
+@app.post("/auth/login")
+async def login(body: AuthRequest):
+    email = body.email.strip().lower()
+    user = database.get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+        
+    if not database.verify_password(body.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+        
+    token = auth_utils.create_token({"email": email})
+    return {"token": token, "email": email}
+
+@app.get("/auth/me")
+async def get_me(request: Request):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = auth_header.split(" ")[1]
+    payload = auth_utils.verify_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        
+    email = payload.get("email")
+    user = database.get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+        
+    return {"email": email}
+
+@app.get("/transcribe/limit")
+async def get_limit(request: Request):
+    identifier, is_authenticated = get_client_identifier(request)
+    limit = 8 if is_authenticated else 3
+    count = database.get_transcription_count(identifier)
+    return {
+        "is_authenticated": is_authenticated,
+        "limit": limit,
+        "usage": count,
+        "remaining": max(0, limit - count)
+    }
+
 @app.get("/video-info")
-@limiter.limit("10/15minutes") # Slightly more generous for info
+@limiter.limit("5/15minutes")  # Aligned with PRD
 async def video_info(request: Request, url: str):
     if not url:
         raise HTTPException(status_code=400, detail="URL is required")
@@ -126,6 +227,16 @@ async def transcribe(
     timestamps: bool = Form(True),
     language: Optional[str] = Form(None)
 ):
+    # Check limit first
+    identifier, is_authenticated = get_client_identifier(request)
+    limit = 8 if is_authenticated else 3
+    count = database.get_transcription_count(identifier)
+    if count >= limit:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Transcription limit reached ({count}/{limit} used in last 24h). Sign up/in to get +5 extra transcriptions!"
+        )
+
     temp_file_path = None
     try:
         # 1. Validation
@@ -145,9 +256,16 @@ async def transcribe(
             if file.content_type not in SUPPORTED_FORMATS:
                 raise HTTPException(status_code=415, detail="Format not supported. Use mp3, mp4, wav, or m4a.")
             
-            # Save to /tmp
-            temp_file_path = f"/tmp/{uuid_name()}_{file.filename}"
-            with open(temp_file_path, "wb") as buffer:
+            # Save to /tmp using tempfile with consistent prefix for cleanup
+            suffix = os.path.splitext(file.filename)[1] if file.filename else ""
+            temp_file = tempfile.NamedTemporaryFile(
+                delete=False,
+                prefix="reelscribe_upload_",
+                suffix=suffix,
+                dir="/tmp"
+            )
+            temp_file_path = temp_file.name
+            with temp_file as buffer:
                 shutil.copyfileobj(file.file, buffer)
 
         # 3. Handle URL
@@ -162,6 +280,9 @@ async def transcribe(
             raise HTTPException(status_code=500, detail="Failed to prepare file for transcription.")
 
         result = await services.transcribe_audio(temp_file_path, model, timestamps, language)
+        # Log successful transcription
+        if not await request.is_disconnected():
+            database.log_transcription(identifier)
         return result
 
     except HTTPException as he:
@@ -202,6 +323,30 @@ async def generate_script_endpoint(request: Request, body: ScriptRequest):
 
 def uuid_name():
     return uuid.uuid4().hex
+
+def cleanup_old_temp_files():
+    """
+    Removes leftover temporary files in /tmp that are older than 24 hours.
+    Called on application startup to handle files from previous crashes.
+    """
+    patterns = [
+        "/tmp/reelscribe_*",          # URL-extracted audio
+        "/tmp/reelscribe_upload_*"    # uploaded files
+    ]
+    cutoff = time.time() - 24 * 3600  # 24 hours ago
+    for pattern in patterns:
+        for path in glob.glob(pattern):
+            try:
+                if os.path.isfile(path) and os.path.getmtime(path) < cutoff:
+                    os.remove(path)
+                    logger.info(f"Cleaned up old temp file: {path}")
+            except Exception as e:
+                logger.error(f"Failed to clean up old temp file {path}: {e}")
+
+@app.on_event("startup")
+async def startup_event():
+    cleanup_old_temp_files()
+    logger.info("Startup cleanup completed.")
 
 if __name__ == "__main__":
     import uvicorn

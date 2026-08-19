@@ -21,6 +21,10 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Ollama fallback configuration (configurable via environment)
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma4:31b-cloud")
+
 # Initialize clients (keys will be loaded from env in main.py)
 groq_client: Optional[Groq] = None
 deepgram_client: Optional[DeepgramClient] = None
@@ -168,57 +172,45 @@ async def transcribe_with_groq(file_path: str, model: str, include_timestamps: b
         }
 
 async def transcribe_with_deepgram(file_path: str) -> Dict[str, Any]:
-    """Helper to call Deepgram API"""
+    """Helper to call Deepgram API using SDK v6.1.1"""
     with open(file_path, "rb") as file:
         payload = {"buffer": file.read()}
-        
-        # Build options as a dict for maximum compatibility across SDK versions
-        options = {
-            "model": "nova-2",
-            "smart_format": True,
-            "utterances": True,
-            "punctuate": True,
-            "diarize": False,
-        }
-        
-        # Try multiple calling patterns for different SDK versions
-        try:
-            # SDK v6+ pattern (based on inspection: only keyword-only arguments)
-            response = await deepgram_client.listen.v1.media.transcribe_file(
-                request=payload,
-                **options
+
+        # Build options object for SDK v6
+        options = PrerecordedOptions(
+            model="nova-2",
+            smart_format=True,
+            utterances=True,
+            punctuate=True,
+            diarize=False,
+        )
+
+        # SDK v6 synchronous style (still async wrapper)
+        def call_deepgram():
+            return deepgram_client.listen.prerecorded.v("1").transcribe_file(
+                source=payload,
+                options=options,
             )
-        except Exception as e6:
-            try:
-                # SDK v3+ pattern fallback
-                response = await deepgram_client.listen.prerecorded.v("1").transcribe_file(payload, options)
-            except Exception as e3:
-                logger.error(f"All Deepgram call patterns failed. v6_err: {e6}, v3_err: {e3}")
-                raise e6
-        
-        # Parse result (Deepgram SDK v6 returns ListenV1Response object)
-        try:
-            # Attempt to access as object first (SDK v6)
-            result = response.results.channels[0].alternatives[0]
-            transcript = result.transcript
-            words = result.words
-            duration = response.metadata.duration
-        except (AttributeError, TypeError):
-            # Fallback for dict-like access or older SDKs
-            res_dict = response if isinstance(response, dict) else response.to_dict()
-            result = res_dict["results"]["channels"][0]["alternatives"][0]
-            transcript = result.get("transcript", "")
-            words = result.get("words", [])
-            duration = res_dict.get("metadata", {}).get("duration", 0)
-        
-        # Deepgram gives words, group into rough segments
+
+        loop = asyncio.get_running_loop()
+        response = await loop.run_in_executor(None, call_deepgram)
+
+        # Parse response (SDK v6 returns a ListenV1Response object)
+        result = response.results.channels[0].alternatives[0]
+        transcript = result.transcript
+        words = result.words
+        duration = response.metadata.duration
+
+        # Group words into rough segments of 10
         segments = []
         for i in range(0, len(words), 10):
             chunk = words[i:i+10]
+            if not chunk:
+                continue
             segments.append({
-                "start": chunk[0].get("start", 0),
-                "end": chunk[-1].get("end", 0),
-                "text": " ".join([w.get("word", "") for w in chunk])
+                "start": chunk[0].start,
+                "end": chunk[-1].end,
+                "text": " ".join([w.word for w in chunk])
             })
 
         return {
@@ -264,19 +256,19 @@ async def call_llm_groq(system_prompt: str, user_prompt: str) -> str:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            model="llama-3.1-8b-instant",
+            model="groq/compound",
             response_format={"type": "json_object"}
         )
     completion = await loop.run_in_executor(None, _call)
     return completion.choices[0].message.content
 
 async def call_llm_ollama(system_prompt: str, user_prompt: str) -> str:
-    """Helper to call local Ollama API"""
+    """Helper to call local Ollama API (configurable via environment)."""
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            "http://localhost:11434/api/generate",
+            OLLAMA_URL,
             json={
-                "model": "gemma4:31b-cloud",  # Match PRD or adjust for available models
+                "model": OLLAMA_MODEL,
                 "system": system_prompt,
                 "prompt": user_prompt,
                 "stream": False,
