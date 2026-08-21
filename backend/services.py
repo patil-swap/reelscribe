@@ -24,6 +24,9 @@ logger = logging.getLogger(__name__)
 # Ollama fallback configuration (configurable via environment)
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma4:31b-cloud")
+# Optional yt-dlp settings for sites that block bots (e.g., Facebook)
+YTDLP_COOKIES_FILE = os.getenv("YTDLP_COOKIES_FILE", None)
+YTDLP_USER_AGENT = os.getenv("YTDLP_USER_AGENT", None)
 
 # Initialize clients (keys will be loaded from env in main.py)
 groq_client: Optional[Groq] = None
@@ -43,7 +46,7 @@ async def extract_audio_from_url(url: str) -> str:
     """
     unique_id = uuid.uuid4().hex
     output_template = f"/tmp/reelscribe_{unique_id}.%(ext)s"
-    
+
     ydl_opts = {
         'format': 'bestaudio/best',
         'postprocessors': [{
@@ -56,24 +59,40 @@ async def extract_audio_from_url(url: str) -> str:
         'no_warnings': True,
     }
 
+    # Optional: use cookies file if provided
+    if YTDLP_COOKIES_FILE:
+        ydl_opts['cookiefile'] = YTDLP_COOKIES_FILE
+
+    # Optional: set custom user-agent to appear more like a real browser
+    if YTDLP_USER_AGENT:
+        ydl_opts['user_agent'] = YTDLP_USER_AGENT
+
     def run_ydl():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             return ydl.prepare_filename(info).replace('.webm', '.mp3').replace('.m4a', '.mp3')
 
-    # Run in a thread to not block the event loop
     loop = asyncio.get_running_loop()
     try:
         file_path = await loop.run_in_executor(None, run_ydl)
-        # Ensure the filename is correct for the .mp3 version
         if not file_path.endswith('.mp3'):
             file_base = os.path.splitext(file_path)[0]
             file_path = f"{file_base}.mp3"
         return file_path
     except Exception as e:
         logger.error(f"yt-dlp extraction failed: {str(e)}")
-        if "ffmpeg" in str(e).lower() or "ffprobe" in str(e).lower():
+        err_str = str(e).lower()
+
+        if "ffmpeg" in err_str or "ffprobe" in err_str:
             raise Exception("SYSTEM ERROR: ffmpeg and ffprobe not found. Please run 'sudo apt update && sudo apt install ffmpeg' on the server.")
+
+        if "cannot parse data" in err_str or "facebook" in err_str:
+            raise Exception(
+                "Couldn't extract audio from Facebook. The video may be private, "
+                "or Facebook changed its page structure. Try updating yt-dlp, "
+                "or use a different link."
+            )
+
         raise Exception("Couldn't extract audio. The link may be private or unsupported.")
 
 async def get_video_info(url: str) -> Dict[str, Any]:
@@ -85,7 +104,12 @@ async def get_video_info(url: str) -> Dict[str, Any]:
         'no_warnings': True,
         'skip_download': True,
     }
-    
+
+    if YTDLP_COOKIES_FILE:
+        ydl_opts['cookiefile'] = YTDLP_COOKIES_FILE
+    if YTDLP_USER_AGENT:
+        ydl_opts['user_agent'] = YTDLP_USER_AGENT
+
     def run_ydl_info():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             return ydl.extract_info(url, download=False)
@@ -102,6 +126,9 @@ async def get_video_info(url: str) -> Dict[str, Any]:
         }
     except Exception as e:
         logger.error(f"Metadata fetch failed: {str(e)}")
+        err_str = str(e).lower()
+        if "cannot parse data" in err_str or "facebook" in err_str:
+            raise Exception("Couldn't fetch video info from Facebook. The video may be private or Facebook changed its page structure.")
         raise Exception("Failed to fetch video information.")
 
 async def transcribe_audio(file_path: str, model: str = "large-v3", include_timestamps: bool = True, language: Optional[str] = None) -> Dict[str, Any]:
