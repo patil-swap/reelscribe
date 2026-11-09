@@ -1,0 +1,15 @@
+.git/
+.gitignore
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+reelscribe.db
+*.db
+.env
+.env.*
+!.env.example
+Dockerfile.bak
+backend/reelscribe.db

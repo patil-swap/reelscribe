@@ -48,3 +48,4 @@ backend/temp/
 screens/
 tmp/
 .agents/
+backend/reelscribe.db
